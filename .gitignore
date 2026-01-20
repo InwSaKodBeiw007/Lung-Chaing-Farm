@@ -1,0 +1,40 @@
+# Flutter ignore
+.dart_tool/
+.idea/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.metadata
+build/
+*.iml
+*.lock
+/ios/.symlinks/
+/android/.gradle
+/android/local.properties
+/android/.idea
+/android/app/build
+/android/app/.cxx
+/android/app/src/main/res/raw/keep.xml
+/android/gradle/
+/android/key.properties
+/android/.keystore
+/android/*.jks
+/android/*.p12
+/android/*.key
+
+# Backend ignore
+backend/node_modules/
+backend/database.db
+backend/uploads/
+
+# General ignore
+.DS_Store
+.env
+.vscode/
+.history/
+.tmp/
+.web/
+.git/
+*.log
+*.sqlite
+*.sqlite-journal
