@@ -199,87 +199,198 @@ const verifyToken = (req, res, next) => {
 
 // --- Product API Endpoints ---
 
-// GET: Fetch all products
+// GET: Fetch all products with owner and image info
 app.get('/products', (req, res) => {
-  db.all('SELECT * FROM products ORDER BY id DESC', [], (err, rows) => {
+  const sql = `
+    SELECT
+      p.id,
+      p.name,
+      p.price,
+      p.stock,
+      p.category,
+      p.low_stock_threshold,
+      p.owner_id,
+      u.farm_name,
+      pi.image_path
+    FROM products p
+    JOIN users u ON p.owner_id = u.id
+    LEFT JOIN product_images pi ON p.id = pi.product_id
+    ORDER BY p.id DESC;
+  `;
+
+  db.all(sql, [], (err, rows) => {
     if (err) {
-      res.status(500).json({ error: err.message });
-      return;
+      return res.status(500).json({ error: err.message });
     }
-    res.json({ products: rows });
+
+    // Group images by product ID
+    const products = {};
+    rows.forEach(row => {
+      if (!products[row.id]) {
+        products[row.id] = {
+          id: row.id,
+          name: row.name,
+          price: row.price,
+          stock: row.stock,
+          category: row.category,
+          low_stock_threshold: row.low_stock_threshold,
+          owner_id: row.owner_id,
+          farm_name: row.farm_name,
+          image_urls: []
+        };
+      }
+      if (row.image_path) {
+        products[row.id].image_urls.push(row.image_path);
+      }
+    });
+
+    res.json({ products: Object.values(products) });
   });
 });
 
-// POST: Add a new product
-app.post('/products', upload.single('image'), (req, res) => {
-  const { name, price, stock } = req.body;
-  const imagePath = req.file ? `uploads/${req.file.filename}` : null;
+// POST: Add a new product (Protected, Villager Only)
+app.post('/products', verifyToken, upload.array('images', 5), (req, res) => {
+  // Role check
+  if (req.user.role !== 'VILLAGER') {
+    return res.status(403).json({ error: 'Forbidden: Only villagers can add products.' });
+  }
+
+  const { name, price, stock, category, low_stock_threshold } = req.body;
+  const owner_id = req.user.id;
 
   if (!name || price === undefined || stock === undefined) {
     return res.status(400).json({ error: 'Missing required fields: name, price, stock' });
   }
 
-  const sql = 'INSERT INTO products (name, price, stock, imagePath) VALUES (?, ?, ?, ?)';
-  db.run(sql, [name, price, stock, imagePath], function(err) {
-    if (err) {
-      res.status(500).json({ error: err.message });
-      return;
-    }
-    res.status(201).json({ id: this.lastID, name, price, stock, imagePath });
-  });
-});
-
-// PUT: Update a product (e.g., for selling)
-// We'll focus on just updating stock for now.
-app.put('/products/:id', (req, res) => {
-    const { stock } = req.body;
-
-    if (stock === undefined) {
-        return res.status(400).json({ error: 'Missing required field: stock' });
-    }
-
-    const sql = 'UPDATE products SET stock = ? WHERE id = ?';
-    db.run(sql, [stock, req.params.id], function(err) {
-        if (err) {
-            res.status(500).json({ error: err.message });
-            return;
-        }
-        if (this.changes === 0) {
-            return res.status(404).json({ error: 'Product not found' });
-        }
-        res.json({ message: 'Product stock updated successfully' });
-    });
-});
-
-
-// DELETE: Remove a product
-app.delete('/products/:id', (req, res) => {
-  // First, get the image path to delete the file
-  db.get('SELECT imagePath FROM products WHERE id = ?', [req.params.id], (err, row) => {
+  const productSql = 'INSERT INTO products (name, price, stock, owner_id, category, low_stock_threshold) VALUES (?, ?, ?, ?, ?, ?)';
+  db.run(productSql, [name, price, stock, owner_id, category, low_stock_threshold], function(err) {
     if (err) {
       return res.status(500).json({ error: err.message });
     }
-    if (row && row.imagePath) {
-      // Delete the associated image file
-      fs.unlink(path.join(__dirname, row.imagePath), (unlinkErr) => {
-        // Log error but don't block deletion of DB record
-        if (unlinkErr) console.error('Error deleting image file:', unlinkErr);
+    
+    const productId = this.lastID;
+    
+    // Handle multiple images
+    if (req.files) {
+      const imageSql = 'INSERT INTO product_images (product_id, image_path) VALUES (?, ?)';
+      const imageStmt = db.prepare(imageSql);
+      for (const file of req.files) {
+        const imagePath = `uploads/${file.filename}`;
+        imageStmt.run(productId, imagePath);
+      }
+      imageStmt.finalize((err) => {
+        if (err) {
+          return res.status(500).json({ error: 'Failed to save product images.' });
+        }
+        res.status(201).json({ id: productId, message: 'Product added successfully with images.' });
       });
+    } else {
+        res.status(201).json({ id: productId, message: 'Product added successfully without images.' });
     }
-
-    // Then, delete the database record
-    const sql = 'DELETE FROM products WHERE id = ?';
-    db.run(sql, [req.params.id], function(err) {
-      if (err) {
-        res.status(500).json({ error: err.message });
-        return;
-      }
-      if (this.changes === 0) {
-        return res.status(404).json({ error: 'Product not found' });
-      }
-      res.json({ message: 'Product deleted successfully' });
-    });
   });
+});
+
+// PUT: Update a product (Protected, Owner Only)
+app.put('/products/:id', verifyToken, (req, res) => {
+    const { name, price, stock, category, low_stock_threshold } = req.body;
+    const productId = req.params.id;
+    const userId = req.user.id;
+
+    // First, verify ownership
+    db.get('SELECT owner_id FROM products WHERE id = ?', [productId], (err, product) => {
+        if (err) {
+            return res.status(500).json({ error: 'Database error.' });
+        }
+        if (!product) {
+            return res.status(404).json({ error: 'Product not found.' });
+        }
+        if (product.owner_id !== userId) {
+            return res.status(403).json({ error: 'Forbidden: You do not own this product.' });
+        }
+
+        // Dynamically build the update query based on provided fields
+        const fields = [];
+        const params = [];
+        if (name !== undefined) {
+            fields.push('name = ?');
+            params.push(name);
+        }
+        if (price !== undefined) {
+            fields.push('price = ?');
+            params.push(price);
+        }
+        if (stock !== undefined) {
+            fields.push('stock = ?');
+            params.push(stock);
+        }
+        if (category !== undefined) {
+            fields.push('category = ?');
+            params.push(category);
+        }
+        if (low_stock_threshold !== undefined) {
+            fields.push('low_stock_threshold = ?');
+            params.push(low_stock_threshold);
+        }
+
+        if (fields.length === 0) {
+            return res.status(400).json({ error: 'No fields to update provided.' });
+        }
+
+        params.push(productId);
+        const sql = `UPDATE products SET ${fields.join(', ')} WHERE id = ?`;
+
+        db.run(sql, params, function(err) {
+            if (err) {
+                return res.status(500).json({ error: err.message });
+            }
+            res.json({ message: 'Product updated successfully.' });
+        });
+    });
+});
+
+
+// DELETE: Remove a product (Protected, Owner Only)
+app.delete('/products/:id', verifyToken, (req, res) => {
+    const productId = req.params.id;
+    const userId = req.user.id;
+
+    // First, verify ownership
+    db.get('SELECT owner_id FROM products WHERE id = ?', [productId], (err, product) => {
+        if (err) {
+            return res.status(500).json({ error: 'Database error.' });
+        }
+        if (!product) {
+            return res.status(404).json({ error: 'Product not found.' });
+        }
+        if (product.owner_id !== userId) {
+            return res.status(403).json({ error: 'Forbidden: You do not own this product.' });
+        }
+
+        // Get all image paths for the product to delete the files
+        db.all('SELECT image_path FROM product_images WHERE product_id = ?', [productId], (err, images) => {
+            if (err) {
+                return res.status(500).json({ error: 'Could not fetch product images.' });
+            }
+
+            // Delete image files from the filesystem
+            images.forEach(image => {
+                fs.unlink(path.join(__dirname, image.image_path), (unlinkErr) => {
+                    if (unlinkErr) console.error('Error deleting image file:', unlinkErr);
+                });
+            });
+
+            // Delete the product and its image records from the database
+            db.serialize(() => {
+                db.run('DELETE FROM product_images WHERE product_id = ?', [productId], (err) => {
+                    if (err) return res.status(500).json({ error: 'Could not delete product images.' });
+                });
+                db.run('DELETE FROM products WHERE id = ?', [productId], function(err) {
+                    if (err) return res.status(500).json({ error: 'Could not delete product.' });
+                    res.json({ message: 'Product deleted successfully.' });
+                });
+            });
+        });
+    });
 });
 
 
