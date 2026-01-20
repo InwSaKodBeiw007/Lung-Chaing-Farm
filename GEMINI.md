@@ -1,122 +1,76 @@
-# Lung Chaing Farm Project Overview
+# Lung Chaing Farm - Project Overview (Enhanced)
 
-This project is a full-stack application named "Lung Chaing Farm," designed to facilitate a village marketplace for farm produce. It features a Flutter-based frontend that can run on the web and Android, and a Node.js backend that manages product data and image storage using SQLite.
+This document provides a comprehensive overview of the "Lung Chaing Farm" application, a full-stack marketplace designed for villagers to sell their farm produce.
+
+The application has been enhanced from a simple product showcase into a multi-user platform with distinct roles, secure authentication, and advanced product management features. It features a Flutter-based frontend and a Node.js backend.
 
 ## Architecture
 
-The application follows a client-server architecture:
+The application follows a client-server architecture with a clear separation of concerns.
 
-*   **Frontend (Flutter):**
-    *   Developed using Flutter, enabling deployment to web and Android platforms.
-    *   Provides user interfaces for viewing products, adding new products, and managing existing ones.
-    *   Uses the `http` package for API communication and `audioplayers` for sound effects.
-    *   Handles image selection and preview.
+### Frontend (Flutter)
 
-*   **Backend (Node.js with Express):**
-    *   An API server built with Node.js and the Express framework.
-    *   Manages product data (name, price, stock, imagePath) stored in a SQLite database.
-    *   Uses `multer` for handling image uploads, storing them in a local `uploads` directory.
-    *   Serves uploaded images statically to the frontend.
-    *   Configured with CORS to allow cross-origin requests from the Flutter frontend.
-    *   Runs on `0.0.0.0` to ensure accessibility from different devices on the network.
+*   **Platform:** Developed using Flutter, enabling deployment to web, Android, and other platforms.
+*   **State Management:** Utilizes the `provider` package for robust and scalable state management, primarily for handling the global authentication state.
+*   **Structure:** Organized into a modular, feature-based structure with distinct directories for models, providers, services, and screens for each user role (Visitor, User, Villager).
+*   **Key Packages:**
+    *   `http`: For all API communication with the backend.
+    *   `provider`: For state management.
+    *   `shared_preferences`: For persisting the user's authentication token locally.
+    *   `audioplayers`: For UI sound effects.
 
-*   **Database (SQLite):**
-    *   A local SQLite database (`database.db`) managed by the Node.js backend.
-    *   Contains a `products` table. (Note: A `sales` table was mentioned in the original prompt but is not yet implemented.)
+### Backend (Node.js with Express)
+
+*   **Framework:** An API server built with Node.js and the Express framework.
+*   **Authentication:** Implements a secure, token-based authentication system using **JSON Web Tokens (JWT)**. Passwords are never stored directly; instead, they are hashed using the **`bcryptjs`** library.
+*   **Authorization:** API endpoints are protected using custom middleware that verifies JWTs and checks user roles and ownership, ensuring users can only access or modify data they are permitted to.
+*   **Database:** Manages all application data using a local **SQLite** database (`database.db`).
+*   **Image Handling:** Uses `multer` for handling multiple image uploads per product, storing them in a local `uploads` directory which is also served statically.
+
+### Database Schema (SQLite)
+
+The database consists of three main tables:
+
+*   **`users`:** Stores user information, including `email`, a hashed password, `role` ('VILLAGER' or 'USER'), and `farm_name` for villagers.
+*   **`products`:** Stores product details, including `name`, `price`, `stock`, `category`, and a `low_stock_threshold`. It is linked to a user via an `owner_id`.
+*   **`product_images`:** Stores paths to product images, allowing for a one-to-many relationship with the `products` table.
 
 ## Key Features
 
-*   **Product Listing:** Displays available farm products in a grid view.
-*   **Product Management:** Allows users to add new products with an image, update product stock (e.g., when a unit is sold), and delete products.
-*   **Image Handling:** Supports uploading product images to the backend and displaying them in the frontend.
-*   **Stock Alert:** Visually indicates products with low stock (less than 5 units).
-*   **Click Sounds:** Provides auditory feedback on key user interactions (refresh, add product, sell, delete, pick image).
+*   **Role-Based Access Control:**
+    *   **Visitor:** Can browse all products.
+    *   **User (Buyer):** Can register, log in, and perform purchase actions.
+    *   **Villager (Seller):** Can register, log in, and has full CRUD (Create, Read, Update, Delete) control over their own products.
+*   **Secure Authentication:** Users can register and log in. Sessions are managed securely and statelessly using JWTs.
+*   **Advanced Product Management:**
+    *   Villagers can manage their own product listings.
+    *   Products can have multiple images.
+    *   Products are categorized ("Sweet", "Sour").
+    *   Villagers can set a custom low-stock alert threshold for each product.
+*   **Farm Identity:** A villager's `farm_name` is displayed on their product listings.
+*   **Notifications (In Design):** A system for sending in-app and email notifications to villagers for low-stock alerts.
 
 ## Building and Running the Project
 
-### Prerequisites
-
-*   Node.js and npm installed.
-*   Flutter SDK installed and configured.
-*   A `click.mp3` sound file for assets (see Assets section below).
-
 ### 1. Start the Backend Server
 
-The backend server must be running for the Flutter application to function correctly.
+1.  Navigate to the `backend` directory: `cd backend`
+2.  Install dependencies: `npm install`
+3.  Start the server: `node server.js`
+    *   The server will run on `http://0.0.0.0:3000/`.
 
-1.  Navigate to the `backend` directory:
-    ```bash
-    cd backend
-    ```
-2.  Install Node.js dependencies (if not already done):
-    ```bash
-    npm install
-    ```
-3.  Start the server. Keep this terminal open:
-    ```bash
-    node server.js
-    ```
-    You should see output similar to:
-    ```
-    Connected to the SQLite database.
-    Products table is ready.
-    Server running at http://0.0.0.0:3000/
-    ```
+### 2. Run the Flutter Application
 
-### 2. Configure Flutter Assets
-
-1.  Ensure you have a sound file named `click.mp3`.
-2.  Create an `assets/sounds` directory at the root of your Flutter project (e.g., `lung_chaing_farm/assets/sounds`).
-3.  Place your `click.mp3` file inside the `assets/sounds` directory.
-
-### 3. Run the Flutter Application
-
-#### For Web
-
-1.  Ensure you are in the root directory of the Flutter project (`lung_chaing_farm`).
-2.  Get Flutter package dependencies (if not already done, or after modifying `pubspec.yaml`):
-    ```bash
-    flutter pub get
-    ```
-3.  Run the application on a web server:
-    ```bash
-    flutter run -d web-server
-    ```
-    This command will provide a URL (e.g., `http://localhost:XXXX/`) which you can open in your web browser.
-
-#### For Android
-
-1.  Ensure an Android emulator is running or a physical device is connected.
-2.  Ensure you are in the root directory of the Flutter project (`lung_chaing_farm`).
-3.  Get Flutter package dependencies (if not already done, or after modifying `pubspec.yaml`):
-    ```bash
-    flutter pub get
-    ```
-4.  Run the application on the Android device:
-    ```bash
-    flutter run
-    ```
-    The application will be installed and launched on your emulator/device.
-
-### Important Configuration Notes
-
-*   **Backend URL (`ApiService.baseUrl`):**
-    *   In `lib/services/api_service.dart`, the `baseUrl` is currently `http://localhost:3000`.
-    *   For Android emulators, you might need to change `localhost` to `http://10.0.2.2:3000` (a special IP for emulators to access the host machine's localhost).
-    *   For physical devices or deployment to a cloud server, you *must* update this to the actual IP address or domain of your Node.js backend.
-*   **Android Permissions (`AndroidManifest.xml`):**
-    *   The `android/app/src/main/AndroidManifest.xml` file has been updated to include `<uses-permission android:name="android.permission.INTERNET"/>` and `android:usesCleartextTraffic="true"` for network access.
+1.  Navigate to the project root directory.
+2.  Get dependencies: `flutter pub get`
+3.  **IMPORTANT:** Before running, ensure the `baseUrl` in `lib/services/api_service.dart` points to your backend's IP address.
+    *   For Android Emulator on the same machine: `http://10.0.2.2:3000`
+    *   For Web on the same machine: `http://localhost:3000`
+    *   For a physical device: Use your computer's network IP (e.g., `http://192.168.1.100:3000`).
+4.  Run the app: `flutter run` (for a connected device) or `flutter run -d web-server` (for web).
 
 ## Development Conventions
 
-*   **Code Structure:**
-    *   Flutter frontend adheres to a modular structure with `lib/screens` for major UI pages, `lib/widgets` for reusable UI components, and `lib/services` for business logic and API communication.
-    *   Node.js backend code is located in the `backend/` directory, separated from the Flutter project.
-*   **Error Handling:** Basic error handling is implemented for API calls and form validations.
-*   **Platform Compatibility:** Code is written with consideration for both web and Android platforms, particularly regarding image handling and asset loading.
-
-## Future Enhancements (from original prompt)
-
-*   Implementation of a `sales` table in the backend database to track sales transactions.
-*   More robust user authentication and authorization.
-*   Deployment to a cloud environment for the Node.js backend and Flutter web app.
+*   **State Management:** App-wide state (like authentication) is managed via `ChangeNotifier` and `Provider`.
+*   **API Service:** API communication is centralized in the `ApiService` singleton, which manages the inclusion of the authentication token in request headers.
+*   **Modularity:** The code is organized by feature and/or layer (`models`, `providers`, `screens`) to improve scalability and maintainability.
