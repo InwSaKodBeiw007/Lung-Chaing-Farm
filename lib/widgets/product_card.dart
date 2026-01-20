@@ -2,17 +2,20 @@
 import 'package:flutter/material.dart';
 import 'package:lung_chaing_farm/services/api_service.dart'; // Ensure this is imported
 import 'package:lung_chaing_farm/services/audio_service.dart'; // Import AudioService
+import 'package:lung_chaing_farm/screens/auth/register_screen.dart'; // Import RegisterScreen
 
 class ProductCard extends StatelessWidget {
   final Map<String, dynamic> product;
   final Function(int id, double currentStock) onSell;
   final Function(int id) onDelete;
+  final String? userRole; // Add userRole here
 
   const ProductCard({
     super.key,
     required this.product,
     required this.onSell,
     required this.onDelete,
+    this.userRole, // Initialize userRole
   });
 
   @override
@@ -20,14 +23,21 @@ class ProductCard extends StatelessWidget {
     final String name = product['name'];
     final double price = (product['price'] as num).toDouble();
     final double stock = (product['stock'] as num).toDouble();
-    final String? imagePath = product['imagePath'];
     final int id = product['id'];
 
-    final bool isLowStock = stock < 5;
-    // Construct the full image URL
-    final String imageUrl = imagePath != null
-        ? '${ApiService.baseUrl}/${imagePath.replaceAll('\\', '/')}' // Replace backslashes for URL
+    // Retrieve imageUrls as a list
+    final List<String> imageUrls = (product['image_urls'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [];
+    // Construct the full URL for the first image, if available
+    final String firstImageUrl = imageUrls.isNotEmpty
+        ? '${ApiService.baseUrl}/${imageUrls.first.replaceAll('\\', '/')}'
         : '';
+
+    final bool isLowStock = stock < 5;
+
+    // Determine if the current user is a Villager
+    final bool isVillager = userRole == 'VILLAGER';
+    final bool isUser = userRole == 'USER';
+    final bool isVisitor = userRole == null;
 
     return Card(
       elevation: 4.0,
@@ -38,9 +48,9 @@ class ProductCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
-              child: imagePath != null && imagePath.isNotEmpty
+              child: imageUrls.isNotEmpty
                   ? Image.network(
-                      imageUrl,
+                      firstImageUrl,
                       fit: BoxFit.cover,
                       width: double.infinity,
                       errorBuilder: (context, error, stackTrace) =>
@@ -72,24 +82,30 @@ class ProductCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                ElevatedButton(
-                  onPressed: stock > 0 ? () {
-                    AudioService.playClickSound(); // Play sound on sell
-                    onSell(id, stock);
-                  } : null,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.lightBlue,
-                    foregroundColor: Colors.white,
+                if (isUser || isVillager || isVisitor) // Show Sell/Buy button for all roles
+                  ElevatedButton(
+                    onPressed: stock > 0 ? () {
+                      AudioService.playClickSound(); // Play sound on sell/buy
+                      if (isVisitor) {
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => const RegisterScreen()));
+                      } else {
+                        onSell(id, stock);
+                      }
+                    } : null,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.lightBlue,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: Text(isVisitor ? 'Buy' : 'Sell 1kg'),
                   ),
-                  child: const Text('Sell 1kg'),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.delete, color: Colors.red),
-                  onPressed: () {
-                    AudioService.playClickSound(); // Play sound on delete
-                    onDelete(id);
-                  },
-                ),
+                if (isVillager) // Only show Delete button for Villager
+                  IconButton(
+                    icon: const Icon(Icons.delete, color: Colors.red),
+                    onPressed: () {
+                      AudioService.playClickSound(); // Play sound on delete
+                      onDelete(id);
+                    },
+                  ),
               ],
             ),
           ],

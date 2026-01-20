@@ -1,5 +1,6 @@
 // lib/screens/add_product_screen.dart
 import 'dart:io';
+import 'dart:typed_data'; // Add this import for Uint8List
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -19,6 +20,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
   final _priceController = TextEditingController();
   final _stockController = TextEditingController();
   XFile? _imageFile;
+  Uint8List? _pickedImageBytes; // New: Store image bytes for web preview
   bool _isLoading = false;
 
   Future<void> _pickImage() async {
@@ -27,6 +29,13 @@ class _AddProductScreenState extends State<AddProductScreen> {
     final XFile? image = await picker.pickImage(source: ImageSource.gallery);
     setState(() {
       _imageFile = image;
+      if (image != null) {
+        image.readAsBytes().then((bytes) {
+          setState(() {
+            _pickedImageBytes = bytes; // Store bytes for web preview
+          });
+        });
+      }
     });
   }
 
@@ -46,7 +55,13 @@ class _AddProductScreenState extends State<AddProductScreen> {
         final imageBytes = _imageFile != null ? await _imageFile!.readAsBytes() : null;
         final imageName = _imageFile?.name;
 
-        await ApiService.addProduct(name, price, stock, imageBytes: imageBytes, imageName: imageName);
+        await ApiService.addProduct(
+          name,
+          price,
+          stock,
+          imageBytes: imageBytes != null ? [imageBytes] : null,
+          imageNames: imageName != null ? [imageName] : null
+        );
 
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Product added successfully!')),
@@ -70,6 +85,13 @@ class _AddProductScreenState extends State<AddProductScreen> {
       appBar: AppBar(
         title: const Text('Add New Product'),
         backgroundColor: Colors.lightGreen,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            AudioService.playClickSound(); // Play sound
+            Navigator.pop(context); // Then pop
+          },
+        ),
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -120,9 +142,9 @@ class _AddProductScreenState extends State<AddProductScreen> {
               const SizedBox(height: 20),
               _imageFile == null
                   ? const Text('No image selected.')
-                  // Use Image.network for web compatibility with the blob URL from image_picker
-                  : kIsWeb 
-                    ? Image.network(_imageFile!.path, height: 150)
+                  // Use Image.memory for web compatibility with the blob URL from image_picker
+                  : kIsWeb && _pickedImageBytes != null
+                    ? Image.memory(_pickedImageBytes!, height: 150)
                     : Image.file(File(_imageFile!.path), height: 150),
               ElevatedButton(
                 onPressed: _pickImage,

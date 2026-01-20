@@ -25,7 +25,6 @@ class _ProductListScreenState extends State<ProductListScreen> {
   }
 
   void _fetchProducts() {
-    AudioService.playClickSound(); // Play sound on refresh
     setState(() {
       _productsFuture = ApiService.getProducts();
     });
@@ -44,16 +43,26 @@ class _ProductListScreenState extends State<ProductListScreen> {
 
   void _sellProduct(int productId, double currentStock) async {
     if (currentStock > 0) {
-      // AudioService.playClickSound(); // This will be handled in ProductCard
-      await ApiService.updateProductStock(productId, currentStock - 1);
-      _fetchProducts(); // Refresh products after selling
+      try {
+        await ApiService.updateProductStock(productId, currentStock - 1);
+        _fetchProducts(); // Refresh products after selling
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to sell product: ${e.toString()}')),
+        );
+      }
     }
   }
 
   void _deleteProduct(int productId) async {
-    // AudioService.playClickSound(); // This will be handled in ProductCard
-    await ApiService.deleteProduct(productId);
-    _fetchProducts(); // Refresh products after deleting
+    try {
+      await ApiService.deleteProduct(productId);
+      _fetchProducts(); // Refresh products after deleting
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to delete product: ${e.toString()}')),
+      );
+    }
   }
 
 
@@ -66,7 +75,10 @@ class _ProductListScreenState extends State<ProductListScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: _fetchProducts,
+            onPressed: () {
+              AudioService.playClickSound();
+              _fetchProducts();
+            },
           ),
           Consumer<AuthProvider>(
             builder: (context, auth, child) {
@@ -75,6 +87,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                   icon: const Icon(Icons.logout),
                   tooltip: 'Logout',
                   onPressed: () {
+                    AudioService.playClickSound();
                     Provider.of<AuthProvider>(context, listen: false).logout();
                   },
                 );
@@ -85,6 +98,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                       icon: const Icon(Icons.person_add),
                       tooltip: 'Register',
                       onPressed: () {
+                        AudioService.playClickSound();
                         Navigator.push(context, MaterialPageRoute(builder: (_) => const RegisterScreen()));
                       },
                     ),
@@ -92,6 +106,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                       icon: const Icon(Icons.login),
                       tooltip: 'Login',
                       onPressed: () {
+                        AudioService.playClickSound();
                         Navigator.push(context, MaterialPageRoute(builder: (_) => const LoginScreen()));
                       },
                     ),
@@ -112,6 +127,9 @@ class _ProductListScreenState extends State<ProductListScreen> {
           } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
             return const Center(child: Text('No products available. Add some!'));
           } else {
+            final auth = Provider.of<AuthProvider>(context);
+            final String? currentUserRole = auth.user?.role;
+
             return GridView.builder(
               padding: const EdgeInsets.all(8.0),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -127,6 +145,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                   product: product,
                   onSell: _sellProduct,
                   onDelete: _deleteProduct,
+                  userRole: currentUserRole,
                 );
               },
             );
