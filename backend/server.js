@@ -5,6 +5,10 @@ const cors = require('cors');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+
+const JWT_SECRET = 'your_super_secret_jwt_key_change_this'; // IMPORTANT: Change this and store it securely!
 
 const app = express();
 const port = 3000;
@@ -20,19 +24,73 @@ const db = new sqlite3.Database(dbPath, (err) => {
     console.error('Error opening database', err.message);
   } else {
     console.log('Connected to the SQLite database.');
-    // Create the products table if it doesn't exist
-    db.run(`CREATE TABLE IF NOT EXISTS products (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
-      price REAL NOT NULL,
-      stock REAL NOT NULL,
-      imagePath TEXT
-    )`, (err) => {
-      if (err) {
-        console.error('Error creating table', err.message);
-      } else {
-        console.log('Products table is ready.');
-      }
+    db.serialize(() => {
+      // Create users table
+      db.run(`CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        email TEXT UNIQUE NOT NULL,
+        password_hash TEXT NOT NULL,
+        role TEXT NOT NULL CHECK(role IN ('VILLAGER', 'USER')),
+        farm_name TEXT,
+        address TEXT,
+        contact_info TEXT
+      )`, (err) => {
+        if (err) console.error('Error creating users table', err.message);
+        else console.log('Users table is ready.');
+      });
+
+      // Create product_images table
+      db.run(`CREATE TABLE IF NOT EXISTS product_images (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        product_id INTEGER NOT NULL,
+        image_path TEXT NOT NULL,
+        FOREIGN KEY (product_id) REFERENCES products (id) ON DELETE CASCADE
+      )`, (err) => {
+        if (err) console.error('Error creating product_images table', err.message);
+        else console.log('Product images table is ready.');
+      });
+      
+      // Original products table creation
+      db.run(`CREATE TABLE IF NOT EXISTS products (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        price REAL NOT NULL,
+        stock REAL NOT NULL,
+        imagePath TEXT
+      )`, (err) => {
+        if (err) {
+          console.error('Error creating products table', err.message);
+        } else {
+          console.log('Products table schema is being checked/updated.');
+          // Add new columns to products table if they don't exist
+          const columns = [
+            { name: 'owner_id', type: 'INTEGER' },
+            { name: 'category', type: 'TEXT' },
+            { name: 'low_stock_threshold', type: 'REAL DEFAULT 7' }
+          ];
+
+          db.all('PRAGMA table_info(products)', (err, existingColumns) => {
+            if (err) {
+              console.error('Error fetching products table info', err);
+              return;
+            }
+            
+            const existingColumnNames = existingColumns.map(c => c.name);
+            
+            columns.forEach(column => {
+              if (!existingColumnNames.includes(column.name)) {
+                db.run(`ALTER TABLE products ADD COLUMN ${column.name} ${column.type}`, (err) => {
+                  if (err) {
+                    console.error(`Error adding column ${column.name}`, err.message);
+                  } else {
+                    console.log(`Column ${column.name} added to products table.`);
+                  }
+                });
+              }
+            });
+          });
+        }
+      });
     });
   }
 });
@@ -65,6 +123,79 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.get('/', (req, res) => {
   res.send('Lung Chaing Farm Backend is running!');
 });
+
+// --- Auth API Endpoints ---
+
+// POST: Register a new user
+app.post('/auth/register', (req, res) => {
+    const { email, password, role, farm_name, address, contact_info } = req.body;
+
+    if (!email || !password || !role) {
+        return res.status(400).json({ error: 'Email, password, and role are required.' });
+    }
+    if (role === 'VILLAGER' && !farm_name) {
+        return res.status(400).json({ error: 'Farm name is required for villagers.' });
+    }
+
+    const salt = bcrypt.genSaltSync(10);
+    const password_hash = bcrypt.hashSync(password, salt);
+
+    const sql = `INSERT INTO users (email, password_hash, role, farm_name, address, contact_info)
+                 VALUES (?, ?, ?, ?, ?, ?)`;
+    const params = [email, password_hash, role, farm_name, address, contact_info];
+
+    db.run(sql, params, function(err) {
+        if (err) {
+            return res.status(500).json({ error: 'Could not register user. Email might already be in use.' });
+        }
+        res.status(201).json({ id: this.lastID, message: 'User registered successfully.' });
+    });
+});
+
+// POST: Login a user
+app.post('/auth/login', (req, res) => {
+    const { email, password } = req.body;
+    if (!email || !password) {
+        return res.status(400).json({ error: 'Email and password are required.' });
+    }
+
+    const sql = 'SELECT * FROM users WHERE email = ?';
+    db.get(sql, [email], (err, user) => {
+        if (err) {
+            return res.status(500).json({ error: 'Server error.' });
+        }
+        if (!user) {
+            return res.status(401).json({ error: 'Invalid credentials.' });
+        }
+
+        const isPasswordCorrect = bcrypt.compareSync(password, user.password_hash);
+        if (!isPasswordCorrect) {
+            return res.status(401).json({ error: 'Invalid credentials.' });
+        }
+
+        const token = jwt.sign({ id: user.id, role: user.role }, JWT_SECRET, { expiresIn: '1h' });
+        res.json({ token, user: { id: user.id, email: user.email, role: user.role, farm_name: user.farm_name } });
+    });
+});
+
+// --- Middleware to verify token ---
+const verifyToken = (req, res, next) => {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+
+    if (!token) {
+        return res.status(403).json({ error: 'A token is required for authentication.' });
+    }
+
+    try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+        req.user = decoded;
+    } catch (err) {
+        return res.status(401).json({ error: 'Invalid Token.' });
+    }
+    return next();
+};
+
 
 // --- Product API Endpoints ---
 
