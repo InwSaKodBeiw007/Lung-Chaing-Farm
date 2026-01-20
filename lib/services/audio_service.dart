@@ -2,22 +2,13 @@
 import 'package:audioplayers/audioplayers.dart';
 
 class AudioService {
+  // Create a static player instance.
   static final AudioPlayer _player = AudioPlayer();
-  static bool _isLoaded = false;
-
-  static Future<void> loadSound() async {
-    if (!_isLoaded) {
-      await _player.setSourceAsset('sounds/click.mp3');
-      _isLoaded = true;
-    }
-  }
 
   static Future<void> playClickSound() async {
-    if (!_isLoaded) {
-      await loadSound();
-    }
-    // Rewind to the beginning and play
-    await _player.seek(Duration.zero);
-    await _player.resume();
+    // The 'play' method is designed for this use case. It stops any current playback
+    // from this player and immediately starts the new source. This is ideal for
+    // short, repeatable sound effects like button clicks.
+    await _player.play(AssetSource('sounds/click.mp3'));
   }
 }

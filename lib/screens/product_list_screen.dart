@@ -1,9 +1,12 @@
-// lib/screens/product_list_screen.dart
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:lung_chaing_farm/providers/auth_provider.dart';
 import 'package:lung_chaing_farm/services/api_service.dart';
 import 'package:lung_chaing_farm/widgets/product_card.dart';
 import 'package:lung_chaing_farm/screens/add_product_screen.dart';
-import 'package:lung_chaing_farm/services/audio_service.dart'; // Import AudioService
+import 'package:lung_chaing_farm/screens/auth/login_screen.dart';
+import 'package:lung_chaing_farm/screens/auth/register_screen.dart';
+import 'package:lung_chaing_farm/services/audio_service.dart';
 
 class ProductListScreen extends StatefulWidget {
   const ProductListScreen({super.key});
@@ -65,6 +68,38 @@ class _ProductListScreenState extends State<ProductListScreen> {
             icon: const Icon(Icons.refresh),
             onPressed: _fetchProducts,
           ),
+          Consumer<AuthProvider>(
+            builder: (context, auth, child) {
+              if (auth.isAuthenticated) {
+                return IconButton(
+                  icon: const Icon(Icons.logout),
+                  tooltip: 'Logout',
+                  onPressed: () {
+                    Provider.of<AuthProvider>(context, listen: false).logout();
+                  },
+                );
+              } else {
+                return Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.person_add),
+                      tooltip: 'Register',
+                      onPressed: () {
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => const RegisterScreen()));
+                      },
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.login),
+                      tooltip: 'Login',
+                      onPressed: () {
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => const LoginScreen()));
+                      },
+                    ),
+                  ],
+                );
+              }
+            },
+          )
         ],
       ),
       body: FutureBuilder<List<Map<String, dynamic>>>(
