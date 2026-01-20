@@ -2,6 +2,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:http/http.dart' as http;
+import 'package:lung_chaing_farm/services/api_exception.dart'; // Import ApiException
 
 class ApiService {
   // --- Singleton Pattern ---
@@ -40,7 +41,8 @@ class ApiService {
     if (response.statusCode == 200) {
       return json.decode(response.body);
     } else {
-      throw Exception('Failed to login: ${response.body}');
+      final errorBody = json.decode(response.body);
+      throw ApiException(response.statusCode, errorBody['error'] ?? 'Failed to login');
     }
   }
 
@@ -70,7 +72,8 @@ class ApiService {
     );
 
     if (response.statusCode != 201) {
-      throw Exception('Failed to register: ${response.body}');
+      final errorBody = json.decode(response.body);
+      throw ApiException(response.statusCode, errorBody['error'] ?? 'Failed to register');
     }
   }
 
@@ -84,7 +87,8 @@ class ApiService {
       final Map<String, dynamic> data = json.decode(response.body);
       return List<Map<String, dynamic>>.from(data['products']);
     } else {
-      throw Exception('Failed to load products');
+      final errorBody = json.decode(response.body);
+      throw ApiException(response.statusCode, errorBody['error'] ?? 'Failed to load products');
     }
   }
 
@@ -115,7 +119,8 @@ class ApiService {
     if (response.statusCode == 201) {
       return json.decode(responseBody.body);
     } else {
-      throw Exception('Failed to add product: ${responseBody.body}');
+      final errorBody = json.decode(responseBody.body);
+      throw ApiException(response.statusCode, errorBody['error'] ?? 'Failed to add product');
     }
   }
   
@@ -126,7 +131,8 @@ class ApiService {
       body: json.encode({'stock': newStock}),
     );
     if (response.statusCode != 200) {
-      throw Exception('Failed to update product stock: ${response.body}');
+      final errorBody = json.decode(response.body);
+      throw ApiException(response.statusCode, errorBody['error'] ?? 'Failed to update product stock');
     }
   }
 
@@ -136,7 +142,8 @@ class ApiService {
       headers: _getHeaders(),
     );
     if (response.statusCode != 200) {
-      throw Exception('Failed to delete product: ${response.body}');
+      final errorBody = json.decode(response.body);
+      throw ApiException(response.statusCode, errorBody['error'] ?? 'Failed to delete product');
     }
   }
 }

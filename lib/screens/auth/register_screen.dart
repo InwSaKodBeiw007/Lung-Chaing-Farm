@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:lung_chaing_farm/providers/auth_provider.dart';
+import 'package:lung_chaing_farm/screens/auth/login_screen.dart'; // Import LoginScreen
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -41,7 +42,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Registration successful! Please log in.')),
       );
-      Navigator.of(context).pop(); // Go back to the previous screen
+      // Navigate to LoginScreen instead of just popping
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (context) => const LoginScreen()),
+      );
     } catch (error) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to register: ${error.toString()}')),
