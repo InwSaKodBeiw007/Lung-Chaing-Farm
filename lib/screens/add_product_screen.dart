@@ -1,7 +1,7 @@
 // lib/screens/add_product_screen.dart
 import 'dart:io';
 import 'dart:typed_data'; // Add this import for Uint8List
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:lung_chaing_farm/services/api_service.dart';
@@ -40,38 +40,42 @@ class _AddProductScreenState extends State<AddProductScreen> {
   }
 
   Future<void> _submitForm() async {
-    if (_formKey.currentState!.validate()) {
-      AudioService.playClickSound(); // Play sound on add product submit
-      setState(() {
-        _isLoading = true;
-      });
+    AudioService.playClickSound(); // Play sound immediately on button press
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+    setState(() {
+      _isLoading = true;
+    });
 
-      try {
-        final String name = _nameController.text;
-        final double price = double.parse(_priceController.text);
-        final double stock = double.parse(_stockController.text);
-        
-        // Read image bytes and get the name for the multipart request
-        final imageBytes = _imageFile != null ? await _imageFile!.readAsBytes() : null;
-        final imageName = _imageFile?.name;
+    try {
+      final String name = _nameController.text;
+      final double price = double.parse(_priceController.text);
+      final double stock = double.parse(_stockController.text);
+      
+      // Read image bytes and get the name for the multipart request
+      final imageBytes = _imageFile != null ? await _imageFile!.readAsBytes() : null;
+      final imageName = _imageFile?.name;
 
-        await ApiService.addProduct(
-          name,
-          price,
-          stock,
-          imageBytes: imageBytes != null ? [imageBytes] : null,
-          imageNames: imageName != null ? [imageName] : null
-        );
+      // Ensure that imageBytes and imageNames are lists for ApiService
+      await ApiService.addProduct(
+        name,
+        price,
+        stock,
+        imageBytes: imageBytes != null ? [imageBytes] : null,
+        imageNames: imageName != null ? [imageName] : null,
+      );
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Product added successfully!')),
-        );
-        Navigator.pop(context, true); // Pop with true to indicate success
-      } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to add product: $e')),
-        );
-      } finally {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Product added successfully!')),
+      );
+      Navigator.pop(context, true); // Pop with true to indicate success
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to add product: ${e.toString()}')),
+      );
+    } finally {
+      if (mounted) {
         setState(() {
           _isLoading = false;
         });

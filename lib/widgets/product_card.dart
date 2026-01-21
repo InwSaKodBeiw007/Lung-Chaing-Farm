@@ -8,6 +8,7 @@ class ProductCard extends StatelessWidget {
   final Map<String, dynamic> product;
   final Function(int id, double currentStock) onSell;
   final Function(int id) onDelete;
+  final Function()? onEdit; // Add onEdit callback
   final String? userRole; // Add userRole here
 
   const ProductCard({
@@ -15,6 +16,7 @@ class ProductCard extends StatelessWidget {
     required this.product,
     required this.onSell,
     required this.onDelete,
+    this.onEdit, // Initialize onEdit
     this.userRole, // Initialize userRole
   });
 
@@ -97,6 +99,14 @@ class ProductCard extends StatelessWidget {
                       foregroundColor: Colors.white,
                     ),
                     child: Text(isVisitor ? 'Buy' : 'Sell 1kg'),
+                  ),
+                if (isVillager && onEdit != null) // Only show Edit button for Villager
+                  IconButton(
+                    icon: const Icon(Icons.edit, color: Colors.blue),
+                    onPressed: () {
+                      AudioService.playClickSound(); // Play sound on edit
+                      onEdit!();
+                    },
                   ),
                 if (isVillager) // Only show Delete button for Villager
                   IconButton(

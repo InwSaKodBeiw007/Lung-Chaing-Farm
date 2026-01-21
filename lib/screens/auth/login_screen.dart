@@ -29,10 +29,13 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       await Provider.of<AuthProvider>(context, listen: false)
           .login(_emailController.text, _passwordController.text);
-      // After login, the main app logic will navigate to the correct screen
-    } catch (error) {
+      // After successful login, pop this screen so AuthWrapper can redirect
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+    } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to login: ${error.toString()}')),
+        SnackBar(content: Text('Failed to login: ${e.toString()}')),
       );
     } finally {
       if (mounted) {
@@ -46,7 +49,16 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Login')),
+      appBar: AppBar(
+        title: const Text('Login'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            AudioService.playClickSound(); // Play sound
+            Navigator.pop(context); // Then pop
+          },
+        ),
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Form(
