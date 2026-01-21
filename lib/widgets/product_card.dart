@@ -29,7 +29,8 @@ class ProductCard extends StatelessWidget {
     final double stock = (product['stock'] as num).toDouble();
     final int id = product['id'];
     final String? category = product['category'];
-    final double lowStockThreshold = (product['low_stock_threshold'] as num?)?.toDouble() ?? 0.0;
+    final double lowStockThreshold =
+        (product['low_stock_threshold'] as num?)?.toDouble() ?? 0.0;
     final int? lowStockSinceDate = product['low_stock_since_date'];
 
     // Retrieve imageUrls as a list
@@ -75,7 +76,10 @@ class ProductCard extends StatelessWidget {
             Row(
               children: [
                 Text('Stock: ${stock.toStringAsFixed(2)} kg'),
-                if (isVillager) Text(' (Threshold: ${lowStockThreshold.toStringAsFixed(2)} kg)'),
+                if (isVillager)
+                  Text(
+                    ' (Threshold: ${lowStockThreshold.toStringAsFixed(2)} kg)',
+                  ),
                 if (isLowStock)
                   const Padding(
                     padding: EdgeInsets.only(left: 4.0),
@@ -85,7 +89,8 @@ class ProductCard extends StatelessWidget {
             ),
             if (isVillager && lowStockSinceDate != null)
               Text(
-                  'Low Stock Since: ${DateFormat('MMM d, yyyy').format(DateTime.fromMillisecondsSinceEpoch(lowStockSinceDate * 1000))}'),
+                'Low Stock Since: ${DateFormat('MMM d, yyyy').format(DateTime.fromMillisecondsSinceEpoch(lowStockSinceDate * 1000))}',
+              ),
             const Spacer(),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,

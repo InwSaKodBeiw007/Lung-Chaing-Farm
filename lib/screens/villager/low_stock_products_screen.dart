@@ -21,7 +21,9 @@ class LowStockProductsScreen extends StatelessWidget {
           }
 
           if (lowStockProvider.lowStockProducts.isEmpty) {
-            return const Center(child: Text('No products currently low in stock.'));
+            return const Center(
+              child: Text('No products currently low in stock.'),
+            );
           }
 
           return ListView.builder(
@@ -29,11 +31,18 @@ class LowStockProductsScreen extends StatelessWidget {
             itemBuilder: (context, index) {
               final Product product = lowStockProvider.lowStockProducts[index];
               final String lowStockDate = product.lowStockSinceDate != null
-                  ? DateFormat('MMM d, yyyy').format(DateTime.fromMillisecondsSinceEpoch(product.lowStockSinceDate! * 1000))
+                  ? DateFormat('MMM d, yyyy').format(
+                      DateTime.fromMillisecondsSinceEpoch(
+                        product.lowStockSinceDate! * 1000,
+                      ),
+                    )
                   : 'N/A';
-              
+
               return Card(
-                margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
+                margin: const EdgeInsets.symmetric(
+                  vertical: 8.0,
+                  horizontal: 16.0,
+                ),
                 elevation: 4.0,
                 child: Padding(
                   padding: const EdgeInsets.all(16.0),

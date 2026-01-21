@@ -6,18 +6,19 @@ import 'package:lung_chaing_farm/services/api_exception.dart'; // Import ApiExce
 
 class ApiService {
   // --- Singleton Pattern ---
-  static ApiService _instance = ApiService._internal(); // Make _instance public for testing
-  
+  static ApiService _instance =
+      ApiService._internal(); // Make _instance public for testing
+
   // Internal HttpClient instance
   final http.Client _httpClient;
   String? _authToken; // Make _authToken an instance field
 
   factory ApiService() => _instance;
-  
+
   // Private constructor with optional HttpClient for testing
   ApiService._internal({http.Client? httpClient, String? authToken})
-      : _httpClient = httpClient ?? http.Client(),
-        _authToken = authToken;
+    : _httpClient = httpClient ?? http.Client(),
+      _authToken = authToken;
 
   // Getter for the instance (can be overridden in tests)
   static ApiService get instance => _instance;
@@ -28,13 +29,17 @@ class ApiService {
 
   @visibleForTesting
   static void resetForTesting({http.Client? httpClient}) {
-    _instance = ApiService._internal(httpClient: httpClient, authToken: null); // Reset authToken as well
+    _instance = ApiService._internal(
+      httpClient: httpClient,
+      authToken: null,
+    ); // Reset authToken as well
   }
 
   // --- Configuration ---
   // Use 'http://10.0.2.2:3000' for Android emulator
   // Use 'http://localhost:3000' for web
-  static const String baseUrl = 'http://localhost:3000'; // Corrected for web development
+  static const String baseUrl =
+      'http://localhost:3000'; // Corrected for web development
 
   // --- Header Management ---
   void setAuthToken(String? token) {
@@ -53,10 +58,7 @@ class ApiService {
   }
 
   // --- Auth Methods ---
-  Future<Map<String, dynamic>> login(
-    String email,
-    String password,
-  ) async {
+  Future<Map<String, dynamic>> login(String email, String password) async {
     final response = await _httpClient.post(
       Uri.parse('$baseUrl/auth/login'),
       headers: _getHeaders(),
@@ -176,7 +178,9 @@ class ApiService {
     final uri = Uri.parse('$baseUrl/products');
     final request = http.MultipartRequest('POST', uri);
 
-    request.headers.addAll(_getHeaders(includeContentType: false)); // Correctly apply to local 'request'
+    request.headers.addAll(
+      _getHeaders(includeContentType: false),
+    ); // Correctly apply to local 'request'
 
     request.fields['name'] = name;
     request.fields['price'] = price.toString();
@@ -215,7 +219,10 @@ class ApiService {
   }
 
   // Purchases a product
-  Future<Map<String, dynamic>> purchaseProduct(int productId, double quantity) async {
+  Future<Map<String, dynamic>> purchaseProduct(
+    int productId,
+    double quantity,
+  ) async {
     final response = await _httpClient.post(
       Uri.parse('$baseUrl/products/$productId/purchase'),
       headers: _getHeaders(),
@@ -282,7 +289,9 @@ class ApiService {
     final uri = Uri.parse('$baseUrl/products/$id');
     final request = http.MultipartRequest('PUT', uri); // Use PUT for updates
 
-    request.headers.addAll(_getHeaders(includeContentType: false)); // Correctly apply to local 'request'
+    request.headers.addAll(
+      _getHeaders(includeContentType: false),
+    ); // Correctly apply to local 'request'
 
     request.fields['name'] = name;
     request.fields['price'] = price.toString();
@@ -326,16 +335,16 @@ class ApiService {
   }
 
   // Fetches transaction history for a product
-  Future<List<Map<String, dynamic>>> getProductTransactions(int productId, {int? days}) async {
+  Future<List<Map<String, dynamic>>> getProductTransactions(
+    int productId, {
+    int? days,
+  }) async {
     Uri uri = Uri.parse('$baseUrl/products/$productId/transactions');
     if (days != null) {
       uri = uri.replace(queryParameters: {'days': days.toString()});
     }
 
-    final response = await _httpClient.get(
-      uri,
-      headers: _getHeaders(),
-    );
+    final response = await _httpClient.get(uri, headers: _getHeaders());
     if (response.statusCode == 200) {
       final Map<String, dynamic> data = json.decode(response.body);
       return List<Map<String, dynamic>>.from(data['transactions']);

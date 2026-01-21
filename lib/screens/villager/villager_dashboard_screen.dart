@@ -34,11 +34,16 @@ class _VillagerDashboardScreenState extends State<VillagerDashboardScreen> {
   void _fetchVillagerProducts() {
     AudioService.playClickSound(); // Play sound on refresh
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final lowStockProvider = Provider.of<LowStockProvider>(context, listen: false); // Get LowStockProvider
-    
+    final lowStockProvider = Provider.of<LowStockProvider>(
+      context,
+      listen: false,
+    ); // Get LowStockProvider
+
     if (authProvider.isAuthenticated && authProvider.user?.role == 'VILLAGER') {
       setState(() {
-        _villagerProductsFuture = ApiService.instance.getProducts().then((allProducts) {
+        _villagerProductsFuture = ApiService.instance.getProducts().then((
+          allProducts,
+        ) {
           final ownedProducts = allProducts
               .where((product) => product['owner_id'] == authProvider.user!.id)
               .toList();
@@ -81,7 +86,9 @@ class _VillagerDashboardScreenState extends State<VillagerDashboardScreen> {
     if (currentStock > 0) {
       try {
         // Fetch full product details to get existing image URLs and category
-        final productDetails = await ApiService.instance.getProductById(productId);
+        final productDetails = await ApiService.instance.getProductById(
+          productId,
+        );
         final List<String> existingImageUrls =
             (productDetails['image_urls'] as List<dynamic>?)
                 ?.map((e) => e.toString())
@@ -137,7 +144,9 @@ class _VillagerDashboardScreenState extends State<VillagerDashboardScreen> {
           Consumer<LowStockProvider>(
             builder: (context, lowStockProvider, child) {
               // Ensure lowStockProvider fetches data when the app starts or a user logs in
-              if (lowStockProvider.isLoading == false && lowStockProvider.lowStockCount == 0 && authProvider.isAuthenticated) {
+              if (lowStockProvider.isLoading == false &&
+                  lowStockProvider.lowStockCount == 0 &&
+                  authProvider.isAuthenticated) {
                 lowStockProvider.fetchLowStockProducts();
               }
               return badges.Badge(
@@ -151,7 +160,12 @@ class _VillagerDashboardScreenState extends State<VillagerDashboardScreen> {
                   animationDuration: Duration(milliseconds: 200),
                 ),
                 child: IconButton(
-                  icon: Image.asset('assets/icons/shop-cart.png', width: 24, height: 24, color: Colors.white), // Use Image.asset for the custom icon
+                  icon: Image.asset(
+                    'assets/icons/shop-cart.png',
+                    width: 24,
+                    height: 24,
+                    color: Colors.white,
+                  ), // Use Image.asset for the custom icon
                   onPressed: () {
                     AudioService.playClickSound();
                     Navigator.push(
@@ -175,7 +189,10 @@ class _VillagerDashboardScreenState extends State<VillagerDashboardScreen> {
             onPressed: () {
               AudioService.playClickSound();
               Provider.of<AuthProvider>(context, listen: false).logout();
-              Provider.of<LowStockProvider>(context, listen: false).clearLowStockData(); // Clear low stock data on logout
+              Provider.of<LowStockProvider>(
+                context,
+                listen: false,
+              ).clearLowStockData(); // Clear low stock data on logout
             },
           ),
         ],
@@ -217,9 +234,11 @@ class _VillagerDashboardScreenState extends State<VillagerDashboardScreen> {
                               ListView.builder(
                                 shrinkWrap: true,
                                 physics: const NeverScrollableScrollPhysics(),
-                                itemCount: lowStockProvider.lowStockProducts.length,
+                                itemCount:
+                                    lowStockProvider.lowStockProducts.length,
                                 itemBuilder: (context, index) {
-                                  final product = lowStockProvider.lowStockProducts[index];
+                                  final product =
+                                      lowStockProvider.lowStockProducts[index];
                                   return Padding(
                                     padding: const EdgeInsets.symmetric(
                                       vertical: 4.0,

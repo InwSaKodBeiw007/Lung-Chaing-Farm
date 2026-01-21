@@ -17,7 +17,8 @@ class LowStockProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      final List<Map<String, dynamic>> data = await ApiService.instance.getLowStockProducts();
+      final List<Map<String, dynamic>> data = await ApiService.instance
+          .getLowStockProducts();
       _lowStockProducts = data.map((item) {
         return Product.fromJson(item);
       }).toList();

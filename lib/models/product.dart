@@ -1,4 +1,3 @@
-
 // lib/models/product.dart
 class Product {
   final int id;
@@ -54,16 +53,17 @@ class Product {
   factory Product.fromJson(Map<String, dynamic> json) {
     // The images will need to be constructed from the joined table
     // This is a placeholder for now and will be updated when the API service is updated
-    final List<String> images = (json['image_urls'] as String?)
-        ?.split(',')
-        .where((s) => s.isNotEmpty) // Filter out empty strings
-        .map((image) {
-          final String fullImageUrl = image.startsWith('uploads/')
-              ? 'http://10.0.2.2:3000/$image' // For Android emulator
-              : 'http://localhost:3000/$image'; // For web
-          return fullImageUrl;
-        })
-        .toList() ??
+    final List<String> images =
+        (json['image_urls'] as String?)
+            ?.split(',')
+            .where((s) => s.isNotEmpty) // Filter out empty strings
+            .map((image) {
+              final String fullImageUrl = image.startsWith('uploads/')
+                  ? 'http://10.0.2.2:3000/$image' // For Android emulator
+                  : 'http://localhost:3000/$image'; // For web
+              return fullImageUrl;
+            })
+            .toList() ??
         [];
 
     return Product(
@@ -90,7 +90,9 @@ class Product {
       'category': category,
       'low_stock_threshold': lowStockThreshold,
       'farm_name': farmName,
-      'image_urls': imageUrls.join(','), // Convert list back to comma-separated string for backend
+      'image_urls': imageUrls.join(
+        ',',
+      ), // Convert list back to comma-separated string for backend
       'low_stock_since_date': lowStockSinceDate,
     };
   }

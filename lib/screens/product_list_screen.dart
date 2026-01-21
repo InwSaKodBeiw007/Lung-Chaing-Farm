@@ -45,7 +45,10 @@ class _ProductListScreenState extends State<ProductListScreen> {
   void _sellProduct(int productId, double currentStock) async {
     if (currentStock > 0) {
       try {
-        await ApiService.instance.updateProductStock(productId, currentStock - 1);
+        await ApiService.instance.updateProductStock(
+          productId,
+          currentStock - 1,
+        );
         _fetchProducts(); // Refresh products after selling
       } catch (e) {
         NotificationService.showSnackBar(
