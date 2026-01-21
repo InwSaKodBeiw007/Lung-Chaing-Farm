@@ -84,7 +84,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
         imageNamesToUpload.add(_newImageFiles[i].name);
       }
 
-      await ApiService.addProduct(
+      await ApiService.instance.addProduct(
         name,
         price,
         stock,

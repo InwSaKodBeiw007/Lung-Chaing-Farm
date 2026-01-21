@@ -25,7 +25,7 @@ class AuthProvider with ChangeNotifier {
       final decoded = json.decode(userData) as Map<String, dynamic>;
       _user = User.fromJson(decoded['user']);
       _token = decoded['token'];
-      ApiService.setAuthToken(_token);
+      ApiService.instance.setAuthToken(_token);
       notifyListeners();
     }
   }
@@ -46,10 +46,10 @@ class AuthProvider with ChangeNotifier {
 
   Future<void> login(String email, String password) async {
     try {
-      final response = await ApiService.login(email, password);
+      final response = await ApiService.instance.login(email, password);
       _user = User.fromJson(response['user']);
       _token = response['token'];
-      ApiService.setAuthToken(_token);
+      ApiService.instance.setAuthToken(_token);
       await _saveUserToStorage(_user!, _token!);
       notifyListeners();
     } on ApiException catch (e) {
@@ -69,7 +69,7 @@ class AuthProvider with ChangeNotifier {
     String? contactInfo,
   }) async {
     try {
-      await ApiService.register(
+      await ApiService.instance.register(
         email: email,
         password: password,
         role: role,
@@ -88,7 +88,7 @@ class AuthProvider with ChangeNotifier {
   Future<void> logout() async {
     _user = null;
     _token = null;
-    ApiService.setAuthToken(null); // Clear token
+    ApiService.instance.setAuthToken(null); // Clear token
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('userData');
     notifyListeners();

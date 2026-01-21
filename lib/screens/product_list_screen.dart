@@ -27,7 +27,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
 
   void _fetchProducts() {
     setState(() {
-      _productsFuture = ApiService.getProducts();
+      _productsFuture = ApiService.instance.getProducts();
     });
   }
 
@@ -45,7 +45,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
   void _sellProduct(int productId, double currentStock) async {
     if (currentStock > 0) {
       try {
-        await ApiService.updateProductStock(productId, currentStock - 1);
+        await ApiService.instance.updateProductStock(productId, currentStock - 1);
         _fetchProducts(); // Refresh products after selling
       } catch (e) {
         NotificationService.showSnackBar(
@@ -58,7 +58,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
 
   void _deleteProduct(int productId) async {
     try {
-      await ApiService.deleteProduct(productId);
+      await ApiService.instance.deleteProduct(productId);
       _fetchProducts(); // Refresh products after deleting
     } catch (e) {
       NotificationService.showSnackBar(

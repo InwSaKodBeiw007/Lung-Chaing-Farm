@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:lung_chaing_farm/providers/auth_provider.dart';
+import 'package:lung_chaing_farm/providers/low_stock_provider.dart'; // Import LowStockProvider
 import 'package:lung_chaing_farm/screens/product_list_screen.dart';
 import 'package:lung_chaing_farm/screens/villager/villager_dashboard_screen.dart';
 import 'package:lung_chaing_farm/screens/user/user_home_screen.dart';
@@ -16,8 +17,11 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (context) => AuthProvider(),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (context) => AuthProvider()),
+        ChangeNotifierProvider(create: (context) => LowStockProvider()),
+      ],
       child: MaterialApp(
         title: 'Lung Chaing Farm',
         theme: ThemeData(

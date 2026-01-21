@@ -44,7 +44,7 @@ class _EditProductScreenState extends State<EditProductScreen> {
       _isLoading = true;
     });
     try {
-      final productData = await ApiService.getProductById(
+      final productData = await ApiService.instance.getProductById(
         widget.productId,
       ); // Assuming this API exists
       _currentProduct = Product.fromJson(productData);
@@ -130,7 +130,7 @@ class _EditProductScreenState extends State<EditProductScreen> {
         imageNamesToUpload.add(_newImageFiles[i].name);
       }
 
-      final response = await ApiService.updateProduct(
+      final response = await ApiService.instance.updateProduct(
         widget.productId,
         name,
         price,
