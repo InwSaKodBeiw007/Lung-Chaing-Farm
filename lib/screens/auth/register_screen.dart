@@ -44,9 +44,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
       );
       NotificationService.showSnackBar('Registration successful! Please log in.');
       // Navigate to LoginScreen instead of just popping
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (context) => const LoginScreen()),
-      );
+      if (mounted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => const LoginScreen()),
+        );
+      }
+    } catch (e) {
       NotificationService.showSnackBar('Failed to register: ${e.toString()}', isError: true);
     } finally {
       if (mounted) {

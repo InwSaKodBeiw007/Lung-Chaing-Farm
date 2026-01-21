@@ -84,3 +84,13 @@ class AuthProvider with ChangeNotifier {
       rethrow; // Re-throw other API exceptions
     }
   }
+
+  Future<void> logout() async {
+    _user = null;
+    _token = null;
+    ApiService.setAuthToken(null); // Clear token
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('userData');
+    notifyListeners();
+  }
+}

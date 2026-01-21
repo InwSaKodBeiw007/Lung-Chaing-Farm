@@ -91,8 +91,6 @@ class _AddProductScreenState extends State<AddProductScreen> {
       );
 
       NotificationService.showSnackBar('Product added successfully!');
-        const SnackBar(content: Text('Product added successfully!')),
-      );
       Navigator.pop(context, true); // Pop with true to indicate success
     } catch (e) {
       NotificationService.showSnackBar('Failed to add product: ${e.toString()}', isError: true);
