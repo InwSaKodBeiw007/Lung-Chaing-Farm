@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 
 // lib/models/product.dart
 class Product {
@@ -60,8 +59,8 @@ class Product {
         .where((s) => s.isNotEmpty) // Filter out empty strings
         .map((image) {
           final String fullImageUrl = image.startsWith('uploads/')
-              ? 'http://10.0.2.2:3000/${image}' // For Android emulator
-              : 'http://localhost:3000/${image}'; // For web
+              ? 'http://10.0.2.2:3000/$image' // For Android emulator
+              : 'http://localhost:3000/$image'; // For web
           return fullImageUrl;
         })
         .toList() ??

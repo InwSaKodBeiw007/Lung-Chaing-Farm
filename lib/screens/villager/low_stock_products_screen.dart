@@ -28,7 +28,7 @@ class LowStockProductsScreen extends StatelessWidget {
             itemCount: lowStockProvider.lowStockProducts.length,
             itemBuilder: (context, index) {
               final Product product = lowStockProvider.lowStockProducts[index];
-              final String? lowStockDate = product.lowStockSinceDate != null
+              final String lowStockDate = product.lowStockSinceDate != null
                   ? DateFormat('MMM d, yyyy').format(DateTime.fromMillisecondsSinceEpoch(product.lowStockSinceDate! * 1000))
                   : 'N/A';
               
