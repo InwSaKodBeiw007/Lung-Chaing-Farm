@@ -387,46 +387,50 @@ app.put('/products/:id', verifyToken, upload.array('images'), (req, res) => {
                         return res.status(500).json({ error: err.message });
                     }
                     
-                    // After successful update, check for low stock and send email
-                    const checkStockSql = `
+                    // After successful product field update, fetch the latest product info
+                    // to determine low stock status for the response.
+                    const fetchUpdatedProductSql = `
                         SELECT p.name, p.stock, p.low_stock_threshold, u.email, u.farm_name
                         FROM products p
                         JOIN users u ON p.owner_id = u.id
                         WHERE p.id = ?`;
-                    db.get(checkStockSql, [productId], (stockErr, productInfo) => {
-                        if (stockErr) {
-                            console.error('Error fetching product info for stock check:', stockErr);
-                            // Do not block response for email error
-                        } else if (productInfo && productInfo.stock <= productInfo.low_stock_threshold) {
+                    db.get(fetchUpdatedProductSql, [productId], (fetchErr, updatedProductInfo) => {
+                        if (fetchErr) {
+                            console.error('Error fetching updated product info:', fetchErr);
+                            // Proceed with a generic success response if fetching fails
+                            return res.json({ message: 'Product updated successfully.' });
+                        }
+
+                        let responsePayload = { message: 'Product updated successfully.' };
+                        if (updatedProductInfo && updatedProductInfo.stock <= updatedProductInfo.low_stock_threshold) {
                             // EMAIL NOTIFICATION DISABLED: Transitioning to in-app notifications
-                            // if (productInfo.email) {
+                            // if (updatedProductInfo.email) {
                             //     sendLowStockEmail(
-                            //         productInfo.email,
-                            //         productInfo.farm_name,
-                            //         productInfo.name,
-                            //         productInfo.stock,
-                            //         productInfo.low_stock_threshold
+                            //         updatedProductInfo.email,
+                            //         updatedProductInfo.farm_name,
+                            //         updatedProductInfo.name,
+                            //         updatedProductInfo.stock,
+                            //         updatedProductInfo.low_stock_threshold
                             //     );
                             // } else {
-                            //     console.warn(`Product owner ${productInfo.email} has no email to send low stock alert to.`);
+                            //     console.warn(`Product owner ${updatedProductInfo.email} has no email to send low stock alert to.`);
                             // }
-                        }
-                    });
 
-                    // Add low stock alert information to the response
-                    if (productInfo && productInfo.stock <= productInfo.low_stock_threshold) {
-                        return res.json({
-                            message: 'Product updated successfully.',
-                            lowStockAlert: true,
-                            productName: productInfo.name,
-                            currentStock: productInfo.stock,
-                            threshold: productInfo.low_stock_threshold
-                        });
-                    } else {
-                        return res.json({ message: 'Product updated successfully.' });
-                    }
+                            responsePayload = {
+                                message: 'Product updated successfully.',
+                                lowStockAlert: true,
+                                productName: updatedProductInfo.name,
+                                currentStock: updatedProductInfo.stock,
+                                threshold: updatedProductInfo.low_stock_threshold
+                            };
+                        }
+                        return res.json(responsePayload);
+                    });
                 });
             } else {
+                // If only images were updated, then directly respond.
+                // We should also re-fetch productInfo here if image changes could affect low stock.
+                // For simplicity now, assuming image changes don't affect low stock status directly.
                 res.json({ message: 'Product images updated successfully.' });
             }
         });

@@ -48,7 +48,10 @@ The database consists of three main tables:
     *   Products are categorized ("Sweet", "Sour").
     *   Villagers can set a custom low-stock alert threshold for each product.
 *   **Farm Identity:** A villager's `farm_name` is displayed on their product listings.
-*   **Notifications (In Design):** A system for sending in-app and email notifications to villagers for low-stock alerts.
+*   **Notifications & Alerts:**
+    *   **In-App Notifications:** Transient `SnackBar` messages for user feedback (success/error) and immediate alerts within the app.
+    *   **Low Stock Overview (for Villagers):** A dedicated section in the villager dashboard that lists all products currently below their defined low stock threshold, for proactive management.
+    *   *(Email notifications for low stock are currently commented out in the backend.)*
 
 ## Building and Running the Project
 
@@ -56,7 +59,8 @@ The database consists of three main tables:
 
 1.  Navigate to the `backend` directory: `cd backend`
 2.  Install dependencies: `npm install`
-3.  Start the server: `node server.js`
+3.  **IMPORTANT:** Configure your `.env` file in the `backend` directory with `JWT_SECRET` and your Ethereal email credentials (for testing email sending, though email alerts are currently commented out).
+4.  Start the server: `node server.js`
     *   The server will run on `http://0.0.0.0:3000/`.
 
 ### 2. Run the Flutter Application
@@ -74,3 +78,5 @@ The database consists of three main tables:
 *   **State Management:** App-wide state (like authentication) is managed via `ChangeNotifier` and `Provider`.
 *   **API Service:** API communication is centralized in the `ApiService` singleton, which manages the inclusion of the authentication token in request headers.
 *   **Modularity:** The code is organized by feature and/or layer (`models`, `providers`, `screens`) to improve scalability and maintainability.
+*   **Error Handling:** Custom `ApiException` and `NotificationService` for consistent, user-friendly error reporting.
+*   **Audio Feedback:** `AudioService` provides consistent click sounds on interactive elements.
