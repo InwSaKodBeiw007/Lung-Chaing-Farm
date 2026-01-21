@@ -89,7 +89,7 @@ class _VillagerDashboardScreenState extends State<VillagerDashboardScreen> {
 
         if (response['lowStockAlert'] == true) {
           NotificationService.showSnackBar(
-            'Product "${response['productName']}" is low in stock! Current: ${response['currentStock']}kg, Threshold: ${response['threshold']}kg',
+            'Product "${response['productName']}" is low in stock! Current: ${response['currentStock']}kg left.',
           );
         }
       } catch (e) {

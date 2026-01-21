@@ -140,7 +140,7 @@ class _EditProductScreenState extends State<EditProductScreen> {
       NotificationService.showSnackBar('Product updated successfully!');
       if (response['lowStockAlert'] == true) {
           NotificationService.showSnackBar(
-            'Product "${response['productName']}" is low in stock! Current: ${response['currentStock']}kg, Threshold: ${response['threshold']}kg',
+            'Product "${response['productName']}" is low in stock! Current: ${response['currentStock']}kg left.',
           );
         }
       Navigator.pop(context, true); // Pop with true to indicate success
