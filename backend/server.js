@@ -1,4 +1,6 @@
 // server.js
+require('dotenv').config(); // Load environment variables from .env file
+
 const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
 const cors = require('cors');
@@ -8,7 +10,7 @@ const fs = require('fs');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
-const JWT_SECRET = 'your_super_secret_jwt_key_change_this'; // IMPORTANT: Change this and store it securely!
+const JWT_SECRET = process.env.JWT_SECRET; // Load from environment variables
 
 const app = express();
 const port = 3000;
@@ -291,10 +293,19 @@ app.post('/products', verifyToken, upload.array('images', 5), (req, res) => {
 });
 
 // PUT: Update a product (Protected, Owner Only)
-app.put('/products/:id', verifyToken, (req, res) => {
-    const { name, price, stock, category, low_stock_threshold } = req.body;
+app.put('/products/:id', verifyToken, upload.array('images'), (req, res) => {
+    const { name, price, stock, category, low_stock_threshold, existing_image_urls } = req.body;
     const productId = req.params.id;
     const userId = req.user.id;
+    let imagesToKeep = [];
+    if (existing_image_urls) {
+        try {
+            imagesToKeep = JSON.parse(existing_image_urls);
+        } catch (e) {
+            console.error('Failed to parse existing_image_urls:', e);
+            return res.status(400).json({ error: 'Invalid format for existing_image_urls.' });
+        }
+    }
 
     // First, verify ownership
     db.get('SELECT owner_id FROM products WHERE id = ?', [productId], (err, product) => {
@@ -308,42 +319,77 @@ app.put('/products/:id', verifyToken, (req, res) => {
             return res.status(403).json({ error: 'Forbidden: You do not own this product.' });
         }
 
-        // Dynamically build the update query based on provided fields
-        const fields = [];
-        const params = [];
-        if (name !== undefined) {
-            fields.push('name = ?');
-            params.push(name);
-        }
-        if (price !== undefined) {
-            fields.push('price = ?');
-            params.push(price);
-        }
-        if (stock !== undefined) {
-            fields.push('stock = ?');
-            params.push(stock);
-        }
-        if (category !== undefined) {
-            fields.push('category = ?');
-            params.push(category);
-        }
-        if (low_stock_threshold !== undefined) {
-            fields.push('low_stock_threshold = ?');
-            params.push(low_stock_threshold);
-        }
-
-        if (fields.length === 0) {
-            return res.status(400).json({ error: 'No fields to update provided.' });
-        }
-
-        params.push(productId);
-        const sql = `UPDATE products SET ${fields.join(', ')} WHERE id = ?`;
-
-        db.run(sql, params, function(err) {
+        // --- Handle Image Updates ---
+        db.all('SELECT id, image_path FROM product_images WHERE product_id = ?', [productId], (err, currentImages) => {
             if (err) {
-                return res.status(500).json({ error: err.message });
+                return res.status(500).json({ error: 'Error fetching current images.' });
             }
-            res.json({ message: 'Product updated successfully.' });
+
+            const currentImagePaths = currentImages.map(img => img.image_path);
+            const imagesToDelete = currentImagePaths.filter(path => !imagesToKeep.includes(path));
+
+            // Delete images that are no longer kept
+            imagesToDelete.forEach(imagePath => {
+                fs.unlink(path.join(__dirname, imagePath), (unlinkErr) => {
+                    if (unlinkErr) console.error('Error deleting old image file:', unlinkErr);
+                });
+                db.run('DELETE FROM product_images WHERE image_path = ?', [imagePath], (dbErr) => {
+                    if (dbErr) console.error('Error deleting image from DB:', dbErr);
+                });
+            });
+
+            // Add new images
+            if (req.files && req.files.length > 0) {
+              const imageSql = 'INSERT INTO product_images (product_id, image_path) VALUES (?, ?)';
+              const imageStmt = db.prepare(imageSql);
+              for (const file of req.files) {
+                const imagePath = `uploads/${file.filename}`;
+                imageStmt.run(productId, imagePath);
+              }
+              imageStmt.finalize();
+            }
+
+            // --- Update Product Fields ---
+            const fields = [];
+            const params = [];
+            if (name !== undefined) {
+                fields.push('name = ?');
+                params.push(name);
+            }
+            if (price !== undefined) {
+                fields.push('price = ?');
+                params.push(price);
+            }
+            if (stock !== undefined) {
+                fields.push('stock = ?');
+                params.push(stock);
+            }
+            if (category !== undefined) {
+                fields.push('category = ?');
+                params.push(category);
+            }
+            if (low_stock_threshold !== undefined) {
+                fields.push('low_stock_threshold = ?');
+                params.push(low_stock_threshold);
+            }
+
+            if (fields.length === 0 && (!req.files || req.files.length === 0) && imagesToDelete.length === 0) {
+                return res.status(400).json({ error: 'No fields or images to update provided.' });
+            }
+
+            if (fields.length > 0) {
+                params.push(productId);
+                const sql = `UPDATE products SET ${fields.join(', ')} WHERE id = ?`;
+
+                db.run(sql, params, function(err) {
+                    if (err) {
+                        return res.status(500).json({ error: err.message });
+                    }
+                    res.json({ message: 'Product updated successfully.' });
+                });
+            } else {
+                res.json({ message: 'Product images updated successfully.' });
+            }
         });
     });
 });
@@ -394,6 +440,52 @@ app.delete('/products/:id', verifyToken, (req, res) => {
 });
 
 
+
+// GET: Fetch a single product by ID with owner and image info
+app.get('/products/:id', (req, res) => {
+  const productId = req.params.id;
+  const sql = `
+    SELECT
+      p.id,
+      p.name,
+      p.price,
+      p.stock,
+      p.category,
+      p.low_stock_threshold,
+      p.owner_id,
+      u.farm_name,
+      GROUP_CONCAT(pi.image_path) AS image_urls
+    FROM products p
+    JOIN users u ON p.owner_id = u.id
+    LEFT JOIN product_images pi ON p.id = pi.product_id
+    WHERE p.id = ?
+    GROUP BY p.id;
+  `;
+
+  db.get(sql, [productId], (err, row) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    if (!row) {
+      return res.status(404).json({ error: 'Product not found.' });
+    }
+
+    // Process image_urls from GROUP_CONCAT
+    const product = {
+      id: row.id,
+      name: row.name,
+      price: row.price,
+      stock: row.stock,
+      category: row.category,
+      low_stock_threshold: row.low_stock_threshold,
+      owner_id: row.owner_id,
+      farm_name: row.farm_name,
+      image_urls: row.image_urls ? row.image_urls.split(',') : [],
+    };
+
+    res.json({ product });
+  });
+});
 
 // --- Server Start ---
 // Listen on 0.0.0.0 to be accessible from other devices on the network
