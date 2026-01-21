@@ -49,7 +49,7 @@ class _VillagerDashboardScreenState extends State<VillagerDashboardScreen> {
               .toList();
 
           // After fetching owned products, also fetch low stock products for the provider
-          lowStockProvider.fetchLowStockProducts(); // Fetch for the provider
+          lowStockProvider.fetchLowStockProducts(authProvider.user!.token); // Fetch for the provider
 
           return ownedProducts;
         });
@@ -107,6 +107,7 @@ class _VillagerDashboardScreenState extends State<VillagerDashboardScreen> {
         if (response['lowStockAlert'] == true) {
           NotificationService.showSnackBar(
             'Product "${response['productName']}" is low in stock! Current: ${response['currentStock']}kg left.',
+            isError: true,
           );
         }
       } catch (e) {
@@ -120,7 +121,7 @@ class _VillagerDashboardScreenState extends State<VillagerDashboardScreen> {
 
   void _deleteProduct(int productId) async {
     try {
-      await ApiService.deleteProduct(productId);
+      await ApiService.instance.deleteProduct(productId);
       _fetchVillagerProducts(); // Refresh products after deleting
     } catch (e) {
       NotificationService.showSnackBar(

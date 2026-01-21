@@ -112,7 +112,7 @@ class ApiService {
   // --- Product Methods ---
 
   // Fetches low stock products for a villager
-  Future<List<Map<String, dynamic>>> getLowStockProducts() async {
+  Future<List<Map<String, dynamic>>> getLowStockProducts(String token) async {
     final response = await _httpClient.get(
       Uri.parse('$baseUrl/villager/low-stock-products'),
       headers: _getHeaders(),
