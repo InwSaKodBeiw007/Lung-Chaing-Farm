@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:lung_chaing_farm/services/audio_service.dart'; // Import AudioService
 import 'package:lung_chaing_farm/screens/auth/register_screen.dart'; // Import RegisterScreen
 import 'package:lung_chaing_farm/widgets/shared/image_gallery_swiper.dart'; // Import ImageGallerySwiper
+import 'package:intl/intl.dart'; // For date formatting
 
 class ProductCard extends StatelessWidget {
   final Map<String, dynamic> product;
@@ -27,6 +28,9 @@ class ProductCard extends StatelessWidget {
     final double price = (product['price'] as num).toDouble();
     final double stock = (product['stock'] as num).toDouble();
     final int id = product['id'];
+    final String? category = product['category'];
+    final double lowStockThreshold = (product['low_stock_threshold'] as num?)?.toDouble() ?? 0.0;
+    final int? lowStockSinceDate = product['low_stock_since_date'];
 
     // Retrieve imageUrls as a list
     final List<String> imageUrls =
@@ -35,7 +39,7 @@ class ProductCard extends StatelessWidget {
             .toList() ??
         [];
 
-    final bool isLowStock = stock < 5;
+    final bool isLowStock = stock <= lowStockThreshold;
 
     // Determine if the current user is a Villager
     final bool isVillager = userRole == 'VILLAGER';
@@ -67,9 +71,11 @@ class ProductCard extends StatelessWidget {
                 style: const TextStyle(fontSize: 12.0, color: Colors.grey),
               ),
             Text('Price: ฿${price.toStringAsFixed(2)}/kg'),
+            if (category != null) Text('Category: $category'),
             Row(
               children: [
                 Text('Stock: ${stock.toStringAsFixed(2)} kg'),
+                if (isVillager) Text(' (Threshold: ${lowStockThreshold.toStringAsFixed(2)} kg)'),
                 if (isLowStock)
                   const Padding(
                     padding: EdgeInsets.only(left: 4.0),
@@ -77,6 +83,9 @@ class ProductCard extends StatelessWidget {
                   ),
               ],
             ),
+            if (isVillager && lowStockSinceDate != null)
+              Text(
+                  'Low Stock Since: ${DateFormat('MMM d, yyyy').format(DateTime.fromMillisecondsSinceEpoch(lowStockSinceDate * 1000))}'),
             const Spacer(),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
