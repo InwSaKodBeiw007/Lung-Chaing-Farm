@@ -13,7 +13,7 @@ class ApiService {
   // --- Configuration ---
   // Use 'http://10.0.2.2:3000' for Android emulator
   // Use 'http://localhost:3000' for web
-  static const String baseUrl = 'http://10.24.14.163:3000'; 
+  static const String baseUrl = 'http://localhost:3000'; // Corrected for web development
   static String? _authToken;
 
   // --- Header Management ---
@@ -78,6 +78,8 @@ class ApiService {
   }
 
   // --- Product Methods ---
+
+  // Fetches all products
   static Future<List<Map<String, dynamic>>> getProducts() async {
     final response = await http.get(
       Uri.parse('$baseUrl/products'),
@@ -92,16 +94,45 @@ class ApiService {
     }
   }
 
-  static Future<Map<String, dynamic>> addProduct(String name, double price, double stock, {List<Uint8List>? imageBytes, List<String>? imageNames}) async {
+  // Fetches a single product by ID
+  static Future<Map<String, dynamic>> getProductById(int id) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/products/$id'),
+      headers: _getHeaders(),
+    );
+    if (response.statusCode == 200) {
+      final Map<String, dynamic> data = json.decode(response.body);
+      return data['product']; // Assuming backend returns { "product": {...} }
+    } else {
+      final errorBody = json.decode(response.body);
+      throw ApiException(response.statusCode, errorBody['error'] ?? 'Failed to load product');
+    }
+  }
+
+  // Adds a new product
+  static Future<Map<String, dynamic>> addProduct(
+    String name,
+    double price,
+    double stock, {
+    String? category,
+    double? lowStockThreshold,
+    List<Uint8List>? imageBytes,
+    List<String>? imageNames,
+  }) async {
     final uri = Uri.parse('$baseUrl/products');
     final request = http.MultipartRequest('POST', uri);
     
-    // Add auth token to multipart request header
     request.headers.addAll({'Authorization': 'Bearer $_authToken'});
 
     request.fields['name'] = name;
     request.fields['price'] = price.toString();
     request.fields['stock'] = stock.toString();
+    if (category != null) {
+      request.fields['category'] = category;
+    }
+    if (lowStockThreshold != null) {
+      request.fields['low_stock_threshold'] = lowStockThreshold.toString();
+    }
 
     if (imageBytes != null && imageNames != null) {
       for(int i = 0; i < imageBytes.length; i++) {
@@ -124,6 +155,7 @@ class ApiService {
     }
   }
   
+  // Updates a product's stock (e.g., when sold) - Simple stock update
   static Future<void> updateProductStock(int id, double newStock) async {
     final response = await http.put(
       Uri.parse('$baseUrl/products/$id'),
@@ -133,6 +165,57 @@ class ApiService {
     if (response.statusCode != 200) {
       final errorBody = json.decode(response.body);
       throw ApiException(response.statusCode, errorBody['error'] ?? 'Failed to update product stock');
+    }
+  }
+
+  // Comprehensive update for an existing product
+  static Future<void> updateProduct(
+    int id,
+    String name,
+    double price,
+    double stock,
+    String? category,
+    double? lowStockThreshold, {
+    List<Uint8List>? newImageBytes,
+    List<String>? newImageNames,
+    List<String>? existingImageUrls, // List of image paths to keep
+  }) async {
+    final uri = Uri.parse('$baseUrl/products/$id');
+    final request = http.MultipartRequest('PUT', uri); // Use PUT for updates
+    
+    request.headers.addAll({'Authorization': 'Bearer $_authToken'});
+
+    request.fields['name'] = name;
+    request.fields['price'] = price.toString();
+    request.fields['stock'] = stock.toString();
+    if (category != null) {
+      request.fields['category'] = category;
+    }
+    if (lowStockThreshold != null) {
+      request.fields['low_stock_threshold'] = lowStockThreshold.toString();
+    }
+    // Send existing image URLs to the backend so it knows what to keep
+    if (existingImageUrls != null && existingImageUrls.isNotEmpty) {
+      // Need to stringify each URL in the list if sending as a single field
+      request.fields['existing_image_urls'] = json.encode(existingImageUrls);
+    }
+
+    if (newImageBytes != null && newImageNames != null) {
+      for(int i = 0; i < newImageBytes.length; i++) {
+        request.files.add(http.MultipartFile.fromBytes(
+          'images', // The backend expects an array of 'images' for new uploads
+          newImageBytes[i],
+          filename: newImageNames[i],
+        ));
+      }
+    }
+
+    final response = await request.send();
+    final responseBody = await http.Response.fromStream(response);
+
+    if (response.statusCode != 200) {
+      final errorBody = json.decode(responseBody.body);
+      throw ApiException(response.statusCode, errorBody['error'] ?? 'Failed to update product');
     }
   }
 

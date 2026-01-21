@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:lung_chaing_farm/services/api_service.dart'; // Ensure this is imported
 import 'package:lung_chaing_farm/services/audio_service.dart'; // Import AudioService
 import 'package:lung_chaing_farm/screens/auth/register_screen.dart'; // Import RegisterScreen
+import 'package:lung_chaing_farm/widgets/shared/image_gallery_swiper.dart'; // Import ImageGallerySwiper
 
 class ProductCard extends StatelessWidget {
   final Map<String, dynamic> product;
@@ -29,10 +30,6 @@ class ProductCard extends StatelessWidget {
 
     // Retrieve imageUrls as a list
     final List<String> imageUrls = (product['image_urls'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [];
-    // Construct the full URL for the first image, if available
-    final String firstImageUrl = imageUrls.isNotEmpty
-        ? '${ApiService.baseUrl}/${imageUrls.first.replaceAll('\\', '/')}'
-        : '';
 
     final bool isLowStock = stock < 5;
 
@@ -50,16 +47,7 @@ class ProductCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
-              child: imageUrls.isNotEmpty
-                  ? Image.network(
-                      firstImageUrl,
-                      fit: BoxFit.cover,
-                      width: double.infinity,
-                      errorBuilder: (context, error, stackTrace) =>
-                          const Icon(Icons.image_not_supported, size: 50),
-                    )
-                  : const Center(
-                      child: Icon(Icons.photo, size: 50, color: Colors.grey)),
+              child: ImageGallerySwiper(imageUrls: imageUrls),
             ),
             const SizedBox(height: 8.0),
             Text(
@@ -69,6 +57,11 @@ class ProductCard extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
+            if (product['farm_name'] != null)
+              Text(
+                'Farm: ${product['farm_name']}',
+                style: const TextStyle(fontSize: 12.0, color: Colors.grey),
+              ),
             Text('Price: ฿${price.toStringAsFixed(2)}/kg'),
             Row(
               children: [
