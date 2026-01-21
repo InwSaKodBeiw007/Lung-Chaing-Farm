@@ -565,18 +565,17 @@ app.put('/products/:id', verifyToken, upload.array('images'), (req, res) => {
 
                         let responsePayload = { message: 'Product updated successfully.' };
                         if (updatedProductInfo && updatedProductInfo.stock <= updatedProductInfo.low_stock_threshold) {
-                            // EMAIL NOTIFICATION DISABLED: Transitioning to in-app notifications
-                            // if (updatedProductInfo.email) {
-                            //     sendLowStockEmail(
-                            //         updatedProductInfo.email,
-                            //         updatedProductInfo.farm_name,
-                            //         updatedProductInfo.name,
-                            //         updatedProductInfo.stock,
-                            //         updatedProductInfo.low_stock_threshold
-                            //     );
-                            // } else {
-                            //     console.warn(`Product owner ${updatedProductInfo.email} has no email to send low stock alert to.`);
-                            // }
+                            if (updatedProductInfo.email) {
+                                sendLowStockEmail(
+                                    updatedProductInfo.email,
+                                    updatedProductInfo.farm_name,
+                                    updatedProductInfo.name,
+                                    updatedProductInfo.stock,
+                                    updatedProductInfo.low_stock_threshold
+                                );
+                            } else {
+                                console.warn(`Product owner ${updatedProductInfo.email} has no email to send low stock alert to.`);
+                            }
 
                             responsePayload = {
                                 message: 'Product updated successfully.',

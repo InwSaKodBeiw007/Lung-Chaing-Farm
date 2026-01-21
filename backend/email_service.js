@@ -6,8 +6,8 @@ const transporter = nodemailer.createTransport({
   port: 587,
   secure: false, // Use TLS
   auth: {
-    user: 'your_ethereal_email_user', // Replace with your Ethereal user
-    pass: 'your_ethereal_email_pass'  // Replace with your Ethereal password
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS
   }
 });
 
