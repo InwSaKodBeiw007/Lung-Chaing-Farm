@@ -158,7 +158,7 @@ class ApiService {
   // Updates a product's stock (e.g., when sold) - Simple stock update
   // This now needs to pass existing image URLs and category to the backend
   // to prevent accidental deletion of images.
-  static Future<void> updateProductStock(int id, double newStock, {
+  static Future<Map<String, dynamic>> updateProductStock(int id, double newStock, {
     String? category,
     List<String>? existingImageUrls,
   }) async {
@@ -175,14 +175,16 @@ class ApiService {
       headers: _getHeaders(),
       body: json.encode(body),
     );
-    if (response.statusCode != 200) {
+    if (response.statusCode == 200) {
+      return json.decode(response.body); // Return the response body
+    } else {
       final errorBody = json.decode(response.body);
       throw ApiException(response.statusCode, errorBody['error'] ?? 'Failed to update product stock');
     }
   }
 
   // Comprehensive update for an existing product
-  static Future<void> updateProduct(
+  static Future<Map<String, dynamic>> updateProduct(
     int id,
     String name,
     double price,
@@ -226,7 +228,9 @@ class ApiService {
     final response = await request.send();
     final responseBody = await http.Response.fromStream(response);
 
-    if (response.statusCode != 200) {
+    if (response.statusCode == 200) {
+      return json.decode(responseBody.body); // Return the response body
+    } else {
       final errorBody = json.decode(responseBody.body);
       throw ApiException(response.statusCode, errorBody['error'] ?? 'Failed to update product');
     }

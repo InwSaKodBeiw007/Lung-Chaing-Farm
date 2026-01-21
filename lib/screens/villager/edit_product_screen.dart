@@ -125,23 +125,24 @@ class _EditProductScreenState extends State<EditProductScreen> {
         imageNamesToUpload.add(_newImageFiles[i].name);
       }
 
-      await ApiService.updateProduct(
+      final response = await ApiService.updateProduct(
         widget.productId,
         name,
         price,
         stock,
         _selectedCategory,
         lowStockThreshold,
-        // For image updates, we'll need a more sophisticated API for removing old and adding new
-        // For now, we'll just send new images, and backend will handle addition.
-        // Deletion of existing images will need a separate API call or logic on backend during update
         newImageBytes: imageBytesToUpload,
         newImageNames: imageNamesToUpload,
-        // Also need to send existing image URLs that are kept
         existingImageUrls: _existingImageUrls,
       );
 
       NotificationService.showSnackBar('Product updated successfully!');
+      if (response['lowStockAlert'] == true) {
+          NotificationService.showSnackBar(
+            'Product "${response['productName']}" is low in stock! Current: ${response['currentStock']}kg, Threshold: ${response['threshold']}kg',
+          );
+        }
       Navigator.pop(context, true); // Pop with true to indicate success
     } catch (e) {
       NotificationService.showSnackBar('Failed to update product: ${e.toString()}', isError: true);

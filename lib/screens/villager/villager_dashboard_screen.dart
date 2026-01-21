@@ -6,6 +6,7 @@ import 'package:lung_chaing_farm/services/api_service.dart';
 import 'package:lung_chaing_farm/widgets/product_card.dart';
 import 'package:lung_chaing_farm/screens/add_product_screen.dart';
 import 'package:lung_chaing_farm/services/audio_service.dart';
+import 'package:lung_chaing_farm/services/notification_service.dart'; // Import NotificationService
 
 class VillagerDashboardScreen extends StatefulWidget {
   const VillagerDashboardScreen({super.key});
@@ -58,9 +59,7 @@ class _VillagerDashboardScreenState extends State<VillagerDashboardScreen> {
   void _editProduct(int productId) {
     AudioService.playClickSound();
     // TODO: Implement navigation to an EditProductScreen
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Edit product functionality not yet implemented.')),
-    );
+    NotificationService.showSnackBar('Edit product functionality not yet implemented.'); // Use NotificationService
   }
 
   void _sellProduct(int productId, double currentStock) async {
@@ -74,17 +73,21 @@ class _VillagerDashboardScreenState extends State<VillagerDashboardScreen> {
             [];
         final String? category = productDetails['category'];
 
-        await ApiService.updateProductStock(
+        final response = await ApiService.updateProductStock(
           productId,
           currentStock - 1,
           category: category,
           existingImageUrls: existingImageUrls,
         );
         _fetchVillagerProducts(); // Refresh products after selling
+
+        if (response['lowStockAlert'] == true) {
+          NotificationService.showSnackBar(
+            'Product "${response['productName']}" is low in stock! Current: ${response['currentStock']}kg, Threshold: ${response['threshold']}kg',
+          );
+        }
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to sell product: ${e.toString()}')),
-        );
+        NotificationService.showSnackBar('Failed to sell product: ${e.toString()}', isError: true);
       }
     }
   }
@@ -94,9 +97,7 @@ class _VillagerDashboardScreenState extends State<VillagerDashboardScreen> {
       await ApiService.deleteProduct(productId);
       _fetchVillagerProducts(); // Refresh products after deleting
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to delete product: ${e.toString()}')),
-      );
+      NotificationService.showSnackBar('Failed to delete product: ${e.toString()}', isError: true);
     }
   }
 
