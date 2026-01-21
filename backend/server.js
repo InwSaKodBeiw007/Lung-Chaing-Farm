@@ -217,6 +217,57 @@ const verifyToken = (req, res, next) => {
 
 // --- Product API Endpoints ---
 
+// GET: Fetch low-stock products for the authenticated Villager (Protected, Villager Only)
+app.get('/villager/low-stock-products', verifyToken, (req, res) => {
+    // Only villagers can access this endpoint
+    if (req.user.role !== 'VILLAGER') {
+        return res.status(403).json({ error: 'Forbidden: Only villagers can view low stock products.' });
+    }
+
+    const villagerId = req.user.id;
+
+    const sql = `
+        SELECT
+            p.id,
+            p.name,
+            p.price,
+            p.stock,
+            p.category,
+            p.low_stock_threshold,
+            p.low_stock_since_date,
+            p.owner_id,
+            u.farm_name,
+            GROUP_CONCAT(pi.image_path) AS image_urls
+        FROM products p
+        JOIN users u ON p.owner_id = u.id
+        LEFT JOIN product_images pi ON p.id = pi.product_id
+        WHERE p.owner_id = ? AND p.stock <= p.low_stock_threshold
+        GROUP BY p.id
+        ORDER BY p.low_stock_since_date ASC;
+    `;
+
+    db.all(sql, [villagerId], (err, rows) => {
+        if (err) {
+            return res.status(500).json({ error: err.message });
+        }
+
+        const products = rows.map(row => ({
+            id: row.id,
+            name: row.name,
+            price: row.price,
+            stock: row.stock,
+            category: row.category,
+            low_stock_threshold: row.low_stock_threshold,
+            low_stock_since_date: row.low_stock_since_date,
+            owner_id: row.owner_id,
+            farm_name: row.farm_name,
+            image_urls: row.image_urls ? row.image_urls.split(',') : [],
+        }));
+
+        res.json({ products });
+    });
+});
+
 // GET: Fetch all products with owner and image info
 app.get('/products', (req, res) => {
   const sql = `
@@ -306,6 +357,102 @@ app.post('/products', verifyToken, upload.array('images', 5), (req, res) => {
         res.status(201).json({ id: productId, message: 'Product added successfully without images.' });
     }
   });
+});
+
+// POST: Purchase a product (Protected, User Only)
+app.post('/products/:productId/purchase', verifyToken, (req, res) => {
+    // Only regular users (buyers) can purchase
+    if (req.user.role !== 'USER') {
+        return res.status(403).json({ error: 'Forbidden: Only users can purchase products.' });
+    }
+
+    const productId = req.params.productId;
+    const { quantity } = req.body;
+    const userId = req.user.id;
+
+    if (!quantity || typeof quantity !== 'number' || quantity <= 0) {
+        return res.status(400).json({ error: 'Valid positive quantity is required.' });
+    }
+
+    db.get('SELECT id, stock, low_stock_threshold, low_stock_since_date, owner_id FROM products WHERE id = ?', [productId], (err, product) => {
+        if (err) {
+            return res.status(500).json({ error: err.message });
+        }
+        if (!product) {
+            return res.status(404).json({ error: 'Product not found.' });
+        }
+        if (product.stock < quantity) {
+            return res.status(400).json({ error: `Insufficient stock. Only ${product.stock}kg available.` });
+        }
+
+        // Begin transaction for atomicity
+        db.serialize(() => {
+            db.run('BEGIN TRANSACTION;');
+
+            const newStock = product.stock - quantity;
+            const currentTime = Math.floor(Date.now() / 1000); // Unix timestamp
+
+            // Update product stock and low_stock_since_date
+            db.run(
+                'UPDATE products SET stock = ?, low_stock_since_date = ? WHERE id = ?',
+                [
+                    newStock,
+                    (newStock <= product.low_stock_threshold && product.low_stock_since_date === null)
+                        ? currentTime // Set if newly low-stock
+                        : (newStock > product.low_stock_threshold)
+                            ? null // Clear if recovered
+                            : product.low_stock_since_date, // Keep existing if already low and still low
+                    productId
+                ],
+                function(err) {
+                    if (err) {
+                        db.run('ROLLBACK;');
+                        return res.status(500).json({ error: err.message });
+                    }
+
+                    // Record transaction
+                    db.run(
+                        'INSERT INTO transactions (product_id, quantity_sold, date_of_sale, user_id) VALUES (?, ?, ?, ?)',
+                        [productId, quantity, currentTime, userId],
+                        function(err) {
+                            if (err) {
+                                db.run('ROLLBACK;');
+                                return res.status(500).json({ error: err.message });
+                            }
+
+                            db.run('COMMIT;', (commitErr) => {
+                                if (commitErr) {
+                                    return res.status(500).json({ error: commitErr.message });
+                                }
+
+                                // Fetch updated product info to send in response
+                                db.get('SELECT name, stock, low_stock_threshold, low_stock_since_date FROM products WHERE id = ?', [productId], (err, updatedProduct) => {
+                                    if (err) {
+                                        return res.status(500).json({ error: err.message });
+                                    }
+                                    let responsePayload = {
+                                        message: 'Product purchased successfully.',
+                                        product: {
+                                            id: productId,
+                                            name: updatedProduct.name,
+                                            stock: updatedProduct.stock,
+                                            low_stock_threshold: updatedProduct.low_stock_threshold,
+                                            low_stock_since_date: updatedProduct.low_stock_since_date
+                                        }
+                                    };
+                                    // Optionally add low stock alert to response if villager needs immediate feedback
+                                    if (updatedProduct.stock <= updatedProduct.low_stock_threshold) {
+                                        responsePayload.lowStockAlert = true;
+                                    }
+                                    res.status(200).json(responsePayload);
+                                });
+                            });
+                        }
+                    );
+                }
+            );
+        });
+    });
 });
 
 // PUT: Update a product (Protected, Owner Only)
@@ -543,6 +690,55 @@ app.get('/products/:id', (req, res) => {
 
     res.json({ product });
   });
+});
+
+// GET: Fetch sales transaction history for a specific product (Protected, Owner Only)
+app.get('/products/:productId/transactions', verifyToken, (req, res) => {
+    const productId = req.params.productId;
+    const { days } = req.query; // Optional query parameter for filtering by days
+    const userId = req.user.id;
+
+    // First, verify ownership
+    db.get('SELECT owner_id FROM products WHERE id = ?', [productId], (err, product) => {
+        if (err) {
+            return res.status(500).json({ error: 'Database error.' });
+        }
+        if (!product) {
+            return res.status(404).json({ error: 'Product not found.' });
+        }
+        if (product.owner_id !== userId) {
+            return res.status(403).json({ error: 'Forbidden: You do not own this product.' });
+        }
+
+        let sql = `
+            SELECT
+                t.id,
+                t.product_id,
+                t.quantity_sold,
+                t.date_of_sale,
+                t.user_id,
+                u.email AS buyer_email
+            FROM transactions t
+            JOIN users u ON t.user_id = u.id
+            WHERE t.product_id = ?
+        `;
+        const params = [productId];
+
+        if (days && !isNaN(parseInt(days))) {
+            const timeAgo = Math.floor(Date.now() / 1000) - (parseInt(days) * 24 * 60 * 60);
+            sql += ` AND t.date_of_sale >= ?`;
+            params.push(timeAgo);
+        }
+
+        sql += ` ORDER BY t.date_of_sale DESC;`;
+
+        db.all(sql, params, (err, transactions) => {
+            if (err) {
+                return res.status(500).json({ error: err.message });
+            }
+            res.json({ transactions });
+        });
+    });
 });
 
 // --- Server Start ---

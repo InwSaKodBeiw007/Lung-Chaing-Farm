@@ -24,6 +24,22 @@ This document outlines the phased implementation plan for the low-stock monitori
 - **Surprises:** The Flutter test directory being empty and the presence of numerous static analysis issues not directly related to the current modification.
 - **Deviations from Plan:** None, all steps for Phase 1 completed as planned.
 
+### Phase 2: Backend API Endpoints and Logic
+- **Date:** 2026-01-21
+- **Actions Taken:**
+    - Implemented `POST /api/products/:productId/purchase` endpoint.
+    - Implemented `GET /api/villager/low-stock-products` endpoint.
+    - Implemented `GET /api/products/:productId/transactions` endpoint with `days` filtering.
+    - Created `backend/test/api.test.js` for new API endpoints.
+    - Installed `supertest` as a dev dependency.
+    - Debugged and fixed race conditions in backend API tests (`low_stock_since_date` logic and transaction `beforeEach` setup).
+    - Ran `dart_fix`, `analyze_files`, `flutter test` (reported no test files), and `dart_format`.
+- **Learnings:**
+    - The asynchronous nature of Node.js SQLite operations and `supertest` required careful handling of `done()` callbacks and chaining in test `beforeEach` blocks to avoid race conditions.
+    - `async/await` with promisified database calls would significantly improve test setup robustness and readability in Node.js.
+- **Surprises:** Extensive debugging required for backend tests due to asynchronous operations and test setup interactions.
+- **Deviations from Plan:** None, all steps for Phase 2 completed as planned.
+
 ## Implementation Plan
 
 ### Phase 1: Database and Backend Foundations
@@ -36,27 +52,24 @@ This document outlines the phased implementation plan for the low-stock monitori
 *   [x] Run the analyze_files tool one more time and fix any issues.
 *   [x] Run any tests to make sure they all pass.
 *   [x] Run dart_format to make sure that the formatting is correct.
-*   [ ] Re-read the MODIFICATION_IMPLEMENTATION.md file to see what, if anything, has changed in the implementation plan, and if it has changed, take care of anything the changes imply.
-*   [ ] Update the MODIFICATION_IMPLEMENTATION.md file with the current state, including any learnings, surprises, or deviations in the Journal section. Check off any checkboxes of items that have been completed.
-*   [ ] Use `git diff` to verify the changes that have been made, and create a suitable commit message for any changes, following any guidelines you have about commit messages. Be sure to properly escape dollar signs and backticks, and present the change message to the user for approval.
-*   [ ] Wait for approval. Don't commit the changes or move on to the next phase of implementation until the user approves the commit.
-*   [ ] After commiting the change, if an app is running, use the hot_reload tool to reload it.
+*   [x] Re-read the MODIFICATION_IMPLEMENTATION.md file to see what, if anything, has changed in the implementation plan, and if it has changed, take care of anything the changes imply.
+*   [x] Update the MODIFICATION_IMPLEMENTATION.md file with the current state, including any learnings, surprises, or deviations in the Journal section. Check off any checkboxes of items that have been completed.
+*   [x] Use `git diff` to verify the changes that have been made, and create a suitable commit message for any changes, following any guidelines you have about commit messages. Be sure to properly escape dollar signs and backticks, and then present the change message to the user for approval.
+*   [x] Wait for approval. Don't commit the changes or move on to the next phase of implementation until the user approves the commit.
+*   [x] After commiting the change, if an app is running, use the hot_reload tool to reload it.
 
 ### Phase 2: Backend API Endpoints and Logic
 
-*   [ ] **Backend:** Implement the `POST /api/products/:productId/purchase` endpoint in `backend/server.js`.
-    *   **Description:** This endpoint will handle product purchases. It will decrement product stock, create a new `transaction` record, and update the `low_stock_since_date` in the `products` table if the product enters or recovers from a low-stock state.
-*   [ ] **Backend:** Implement the `GET /api/villager/low-stock-products` endpoint in `backend/server.js`.
-    *   **Description:** This endpoint will retrieve all products for the authenticated Villager that are currently below their low-stock threshold, including the `low_stock_since_date`.
-*   [ ] **Backend:** Implement the `GET /api/products/:productId/transactions` endpoint in `backend/server.js`.
-    *   **Description:** This endpoint will retrieve sales transaction history for a specific product, with optional filtering based on the `days` query parameter.
-*   [ ] Create/modify unit tests for testing the code added or modified in this phase, if relevant.
-*   [ ] Run the dart_fix tool to clean up the code.
-*   [ ] Run the analyze_files tool one more time and fix any issues.
-*   [ ] Run any tests to make sure they all pass.
-*   [ ] Run dart_format to make sure that the formatting is correct.
-*   [ ] Re-read the MODIFICATION_IMPLEMENTATION.md file to see what, if anything, has changed in the implementation plan, and if it has changed, take care of anything the changes imply.
-*   [ ] Update the MODIFICATION_IMPLEMENTATION.md file with the current state, including any learnings, surprises, or deviations in the Journal section. Check off any checkboxes of items that have been completed.
+*   [x] **Backend:** Implement the `POST /api/products/:productId/purchase` endpoint in `backend/server.js`.
+*   [x] **Backend:** Implement the `GET /api/villager/low-stock-products` endpoint in `backend/server.js`.
+*   [x] **Backend:** Implement the `GET /api/products/:productId/transactions` endpoint in `backend/server.js`.
+*   [x] Create/modify unit tests for testing the code added or modified in this phase, if relevant.
+*   [x] Run the dart_fix tool to clean up the code.
+*   [x] Run the analyze_files tool one more time and fix any issues.
+*   [x] Run any tests to make sure they all pass.
+*   [x] Run dart_format to make sure that the formatting is correct.
+*   [x] Re-read the MODIFICATION_IMPLEMENTATION.md file to see what, if anything, has changed in the implementation plan, and if it has changed, take care of anything the changes imply.
+*   [x] Update the MODIFICATION_IMPLEMENTATION.md file with the current state, including any learnings, surprises, or deviations in the Journal section. Check off any checkboxes of items that have been completed.
 *   [ ] Use `git diff` to verify the changes that have been made, and create a suitable commit message for any changes, following any guidelines you have about commit messages. Be sure to properly escape dollar signs and backticks, and present the change message to the user for approval.
 *   [ ] Wait for approval. Don't commit the changes or move on to the next phase of implementation until the user approves the commit.
 *   [ ] After commiting the change, if an app is running, use the hot_reload tool to reload it.
