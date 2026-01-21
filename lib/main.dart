@@ -3,7 +3,8 @@ import 'package:provider/provider.dart';
 import 'package:lung_chaing_farm/providers/auth_provider.dart';
 import 'package:lung_chaing_farm/screens/product_list_screen.dart';
 import 'package:lung_chaing_farm/screens/villager/villager_dashboard_screen.dart';
-import 'package:lung_chaing_farm/screens/user/user_home_screen.dart'; // Will be implemented later
+import 'package:lung_chaing_farm/screens/user/user_home_screen.dart';
+import 'package:lung_chaing_farm/services/notification_service.dart'; // Import NotificationService
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -23,6 +24,7 @@ class MyApp extends StatelessWidget {
           colorScheme: ColorScheme.fromSeed(seedColor: Colors.lightGreen),
           useMaterial3: true,
         ),
+        scaffoldMessengerKey: NotificationService.messengerKey, // Set the messenger key
         home: const AuthWrapper(),
       ),
     );

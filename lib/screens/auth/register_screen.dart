@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:lung_chaing_farm/providers/auth_provider.dart';
 import 'package:lung_chaing_farm/screens/auth/login_screen.dart'; // Import LoginScreen
 import 'package:lung_chaing_farm/services/audio_service.dart'; // Import AudioService
+import 'package:lung_chaing_farm/services/notification_service.dart'; // Import NotificationService
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -41,17 +42,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
         address: _addressController.text,
         contactInfo: _contactController.text,
       );
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Registration successful! Please log in.')),
-      );
+      NotificationService.showSnackBar('Registration successful! Please log in.');
       // Navigate to LoginScreen instead of just popping
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (context) => const LoginScreen()),
       );
-    } catch (error) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to register: ${error.toString()}')),
-      );
+      NotificationService.showSnackBar('Failed to register: ${e.toString()}', isError: true);
     } finally {
       if (mounted) {
         setState(() {

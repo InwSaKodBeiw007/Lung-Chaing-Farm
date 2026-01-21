@@ -47,9 +47,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
         await ApiService.updateProductStock(productId, currentStock - 1);
         _fetchProducts(); // Refresh products after selling
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to sell product: ${e.toString()}')),
-        );
+      NotificationService.showSnackBar('Failed to sell product: ${e.toString()}', isError: true);
       }
     }
   }
@@ -59,10 +57,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
       await ApiService.deleteProduct(productId);
       _fetchProducts(); // Refresh products after deleting
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to delete product: ${e.toString()}')),
-      );
-    }
+            NotificationService.showSnackBar('Failed to delete product: ${e.toString()}', isError: true);    }
   }
 
 

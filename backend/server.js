@@ -9,6 +9,7 @@ const path = require('path');
 const fs = require('fs');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const { sendLowStockEmail } = require('./email_service'); // Import email service
 
 const JWT_SECRET = process.env.JWT_SECRET; // Load from environment variables
 
@@ -385,6 +386,32 @@ app.put('/products/:id', verifyToken, upload.array('images'), (req, res) => {
                     if (err) {
                         return res.status(500).json({ error: err.message });
                     }
+                    
+                    // After successful update, check for low stock and send email
+                    const checkStockSql = `
+                        SELECT p.name, p.stock, p.low_stock_threshold, u.email, u.farm_name
+                        FROM products p
+                        JOIN users u ON p.owner_id = u.id
+                        WHERE p.id = ?`;
+                    db.get(checkStockSql, [productId], (stockErr, productInfo) => {
+                        if (stockErr) {
+                            console.error('Error fetching product info for stock check:', stockErr);
+                            // Do not block response for email error
+                        } else if (productInfo && productInfo.stock <= productInfo.low_stock_threshold) {
+                            if (productInfo.email) {
+                                sendLowStockEmail(
+                                    productInfo.email,
+                                    productInfo.farm_name,
+                                    productInfo.name,
+                                    productInfo.stock,
+                                    productInfo.low_stock_threshold
+                                );
+                            } else {
+                                console.warn(`Product owner ${productInfo.email} has no email to send low stock alert to.`);
+                            }
+                        }
+                    });
+
                     res.json({ message: 'Product updated successfully.' });
                 });
             } else {

@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:lung_chaing_farm/services/api_service.dart';
 import 'package:lung_chaing_farm/services/audio_service.dart'; // Import AudioService
 import 'package:lung_chaing_farm/models/product.dart'; // Import Product model
+import 'package:lung_chaing_farm/services/notification_service.dart'; // Import NotificationService
 
 class EditProductScreen extends StatefulWidget {
   final int productId;
@@ -54,9 +55,7 @@ class _EditProductScreenState extends State<EditProductScreen> {
       _existingImageUrls = _currentProduct!.imageUrls;
 
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to load product: $e')),
-      );
+      NotificationService.showSnackBar('Failed to load product: ${e.toString()}', isError: true);
     } finally {
       if (mounted) {
         setState(() {
@@ -142,14 +141,10 @@ class _EditProductScreenState extends State<EditProductScreen> {
         existingImageUrls: _existingImageUrls,
       );
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Product updated successfully!')),
-      );
+      NotificationService.showSnackBar('Product updated successfully!');
       Navigator.pop(context, true); // Pop with true to indicate success
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to update product: ${e.toString()}')),
-      );
+      NotificationService.showSnackBar('Failed to update product: ${e.toString()}', isError: true);
     } finally {
       if (mounted) {
         setState(() {

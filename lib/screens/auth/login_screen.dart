@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:lung_chaing_farm/providers/auth_provider.dart';
 import 'package:lung_chaing_farm/services/audio_service.dart'; // Import AudioService
+import 'package:lung_chaing_farm/services/notification_service.dart'; // Import NotificationService
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -34,9 +35,7 @@ class _LoginScreenState extends State<LoginScreen> {
         Navigator.of(context).pop();
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to login: ${e.toString()}')),
-      );
+      NotificationService.showSnackBar('Failed to login: ${e.toString()}', isError: true);
     } finally {
       if (mounted) {
         setState(() {

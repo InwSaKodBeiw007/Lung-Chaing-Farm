@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:lung_chaing_farm/services/api_service.dart';
 import 'package:lung_chaing_farm/services/audio_service.dart'; // Import AudioService
+import 'package:lung_chaing_farm/services/notification_service.dart'; // Import NotificationService
 
 class AddProductScreen extends StatefulWidget {
   const AddProductScreen({super.key});
@@ -89,14 +90,12 @@ class _AddProductScreenState extends State<AddProductScreen> {
         imageNames: imageNamesToUpload,
       );
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      NotificationService.showSnackBar('Product added successfully!');
         const SnackBar(content: Text('Product added successfully!')),
       );
       Navigator.pop(context, true); // Pop with true to indicate success
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to add product: ${e.toString()}')),
-      );
+      NotificationService.showSnackBar('Failed to add product: ${e.toString()}', isError: true);
     } finally {
       if (mounted) {
         setState(() {
