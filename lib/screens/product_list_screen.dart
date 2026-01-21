@@ -48,7 +48,10 @@ class _ProductListScreenState extends State<ProductListScreen> {
         await ApiService.updateProductStock(productId, currentStock - 1);
         _fetchProducts(); // Refresh products after selling
       } catch (e) {
-      NotificationService.showSnackBar('Failed to sell product: ${e.toString()}', isError: true);
+        NotificationService.showSnackBar(
+          'Failed to sell product: ${e.toString()}',
+          isError: true,
+        );
       }
     }
   }
@@ -58,9 +61,12 @@ class _ProductListScreenState extends State<ProductListScreen> {
       await ApiService.deleteProduct(productId);
       _fetchProducts(); // Refresh products after deleting
     } catch (e) {
-            NotificationService.showSnackBar('Failed to delete product: ${e.toString()}', isError: true);    }
+      NotificationService.showSnackBar(
+        'Failed to delete product: ${e.toString()}',
+        isError: true,
+      );
+    }
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -95,7 +101,12 @@ class _ProductListScreenState extends State<ProductListScreen> {
                       tooltip: 'Register',
                       onPressed: () {
                         AudioService.playClickSound();
-                        Navigator.push(context, MaterialPageRoute(builder: (_) => const RegisterScreen()));
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const RegisterScreen(),
+                          ),
+                        );
                       },
                     ),
                     IconButton(
@@ -103,14 +114,19 @@ class _ProductListScreenState extends State<ProductListScreen> {
                       tooltip: 'Login',
                       onPressed: () {
                         AudioService.playClickSound();
-                        Navigator.push(context, MaterialPageRoute(builder: (_) => const LoginScreen()));
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const LoginScreen(),
+                          ),
+                        );
                       },
                     ),
                   ],
                 );
               }
             },
-          )
+          ),
         ],
       ),
       body: FutureBuilder<List<Map<String, dynamic>>>(
@@ -121,7 +137,9 @@ class _ProductListScreenState extends State<ProductListScreen> {
           } else if (snapshot.hasError) {
             return Center(child: Text('Error: ${snapshot.error}'));
           } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Center(child: Text('No products available. Add some!'));
+            return const Center(
+              child: Text('No products available. Add some!'),
+            );
           } else {
             final auth = Provider.of<AuthProvider>(context);
             final String? currentUserRole = auth.user?.role;

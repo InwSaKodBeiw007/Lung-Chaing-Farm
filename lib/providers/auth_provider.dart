@@ -39,7 +39,7 @@ class AuthProvider with ChangeNotifier {
         'email': user.email,
         'role': user.role,
         'farm_name': user.farmName,
-      }
+      },
     });
     await prefs.setString('userData', userData);
   }

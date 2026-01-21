@@ -52,6 +52,20 @@ const db = new sqlite3.Database(dbPath, (err) => {
         if (err) console.error('Error creating product_images table', err.message);
         else console.log('Product images table is ready.');
       });
+
+      // Create transactions table
+      db.run(`CREATE TABLE IF NOT EXISTS transactions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        product_id INTEGER NOT NULL,
+        quantity_sold REAL NOT NULL,
+        date_of_sale INTEGER NOT NULL, -- Unix timestamp
+        user_id INTEGER NOT NULL, -- The user who bought the product
+        FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      )`, (err) => {
+        if (err) console.error('Error creating transactions table', err.message);
+        else console.log('Transactions table is ready.');
+      });
       
       // Original products table creation
       db.run(`CREATE TABLE IF NOT EXISTS products (
@@ -69,7 +83,8 @@ const db = new sqlite3.Database(dbPath, (err) => {
           const columns = [
             { name: 'owner_id', type: 'INTEGER' },
             { name: 'category', type: 'TEXT' },
-            { name: 'low_stock_threshold', type: 'REAL DEFAULT 7' }
+            { name: 'low_stock_threshold', type: 'REAL DEFAULT 7' },
+            { name: 'low_stock_since_date', type: 'INTEGER' }
           ];
 
           db.all('PRAGMA table_info(products)', (err, existingColumns) => {

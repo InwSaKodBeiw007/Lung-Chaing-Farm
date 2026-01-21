@@ -12,12 +12,14 @@ class VillagerDashboardScreen extends StatefulWidget {
   const VillagerDashboardScreen({super.key});
 
   @override
-  State<VillagerDashboardScreen> createState() => _VillagerDashboardScreenState();
+  State<VillagerDashboardScreen> createState() =>
+      _VillagerDashboardScreenState();
 }
 
 class _VillagerDashboardScreenState extends State<VillagerDashboardScreen> {
   late Future<List<Map<String, dynamic>>> _villagerProductsFuture;
-  List<Map<String, dynamic>> _lowStockProducts = []; // New: To hold low stock products
+  List<Map<String, dynamic>> _lowStockProducts =
+      []; // New: To hold low stock products
 
   @override
   void initState() {
@@ -31,14 +33,20 @@ class _VillagerDashboardScreenState extends State<VillagerDashboardScreen> {
     if (authProvider.isAuthenticated && authProvider.user?.role == 'VILLAGER') {
       setState(() {
         _villagerProductsFuture = ApiService.getProducts().then((allProducts) {
-          final ownedProducts = allProducts.where((product) =>
-              product['owner_id'] == authProvider.user!.id).toList();
+          final ownedProducts = allProducts
+              .where((product) => product['owner_id'] == authProvider.user!.id)
+              .toList();
 
-          _lowStockProducts = ownedProducts.where((product) =>
-              (product['stock'] as num?) != null &&
-              (product['low_stock_threshold'] as num?) != null &&
-              (product['stock'] as num) <= (product['low_stock_threshold'] as num)).toList();
-          
+          _lowStockProducts = ownedProducts
+              .where(
+                (product) =>
+                    (product['stock'] as num?) != null &&
+                    (product['low_stock_threshold'] as num?) != null &&
+                    (product['stock'] as num) <=
+                        (product['low_stock_threshold'] as num),
+              )
+              .toList();
+
           return ownedProducts;
         });
       });
@@ -65,7 +73,9 @@ class _VillagerDashboardScreenState extends State<VillagerDashboardScreen> {
   void _editProduct(int productId) {
     AudioService.playClickSound();
     // TODO: Implement navigation to an EditProductScreen
-    NotificationService.showSnackBar('Edit product functionality not yet implemented.'); // Use NotificationService
+    NotificationService.showSnackBar(
+      'Edit product functionality not yet implemented.',
+    ); // Use NotificationService
   }
 
   void _sellProduct(int productId, double currentStock) async {
@@ -73,7 +83,8 @@ class _VillagerDashboardScreenState extends State<VillagerDashboardScreen> {
       try {
         // Fetch full product details to get existing image URLs and category
         final productDetails = await ApiService.getProductById(productId);
-        final List<String> existingImageUrls = (productDetails['image_urls'] as List<dynamic>?)
+        final List<String> existingImageUrls =
+            (productDetails['image_urls'] as List<dynamic>?)
                 ?.map((e) => e.toString())
                 .toList() ??
             [];
@@ -93,7 +104,10 @@ class _VillagerDashboardScreenState extends State<VillagerDashboardScreen> {
           );
         }
       } catch (e) {
-        NotificationService.showSnackBar('Failed to sell product: ${e.toString()}', isError: true);
+        NotificationService.showSnackBar(
+          'Failed to sell product: ${e.toString()}',
+          isError: true,
+        );
       }
     }
   }
@@ -103,7 +117,10 @@ class _VillagerDashboardScreenState extends State<VillagerDashboardScreen> {
       await ApiService.deleteProduct(productId);
       _fetchVillagerProducts(); // Refresh products after deleting
     } catch (e) {
-      NotificationService.showSnackBar('Failed to delete product: ${e.toString()}', isError: true);
+      NotificationService.showSnackBar(
+        'Failed to delete product: ${e.toString()}',
+        isError: true,
+      );
     }
   }
 
@@ -155,9 +172,10 @@ class _VillagerDashboardScreenState extends State<VillagerDashboardScreen> {
                           const Text(
                             'Low Stock Alerts:',
                             style: TextStyle(
-                                fontSize: 18.0,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.red),
+                              fontSize: 18.0,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.red,
+                            ),
                           ),
                           const Divider(),
                           ListView.builder(
@@ -167,7 +185,9 @@ class _VillagerDashboardScreenState extends State<VillagerDashboardScreen> {
                             itemBuilder: (context, index) {
                               final product = _lowStockProducts[index];
                               return Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 4.0),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 4.0,
+                                ),
                                 child: Text(
                                   '${product['name']}: ${product['stock']}kg (Threshold: ${product['low_stock_threshold']}kg)',
                                   style: const TextStyle(fontSize: 16.0),
@@ -182,12 +202,13 @@ class _VillagerDashboardScreenState extends State<VillagerDashboardScreen> {
                 Expanded(
                   child: GridView.builder(
                     padding: const EdgeInsets.all(8.0),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      crossAxisSpacing: 8.0,
-                      mainAxisSpacing: 8.0,
-                      childAspectRatio: 0.75,
-                    ),
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          crossAxisSpacing: 8.0,
+                          mainAxisSpacing: 8.0,
+                          childAspectRatio: 0.75,
+                        ),
                     itemCount: snapshot.data!.length,
                     itemBuilder: (context, index) {
                       final product = snapshot.data![index];

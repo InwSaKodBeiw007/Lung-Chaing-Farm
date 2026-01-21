@@ -24,7 +24,8 @@ class MyApp extends StatelessWidget {
           colorScheme: ColorScheme.fromSeed(seedColor: Colors.lightGreen),
           useMaterial3: true,
         ),
-        scaffoldMessengerKey: NotificationService.messengerKey, // Set the messenger key
+        scaffoldMessengerKey:
+            NotificationService.messengerKey, // Set the messenger key
         home: const AuthWrapper(),
       ),
     );

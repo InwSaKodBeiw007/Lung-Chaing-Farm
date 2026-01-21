@@ -28,14 +28,19 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      await Provider.of<AuthProvider>(context, listen: false)
-          .login(_emailController.text, _passwordController.text);
+      await Provider.of<AuthProvider>(
+        context,
+        listen: false,
+      ).login(_emailController.text, _passwordController.text);
       // After successful login, pop this screen so AuthWrapper can redirect
       if (mounted) {
         Navigator.of(context).pop();
       }
     } catch (e) {
-      NotificationService.showSnackBar('Failed to login: ${e.toString()}', isError: true);
+      NotificationService.showSnackBar(
+        'Failed to login: ${e.toString()}',
+        isError: true,
+      );
     } finally {
       if (mounted) {
         setState(() {

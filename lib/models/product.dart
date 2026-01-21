@@ -25,9 +25,8 @@ class Product {
   factory Product.fromJson(Map<String, dynamic> json) {
     // The images will need to be constructed from the joined table
     // This is a placeholder for now and will be updated when the API service is updated
-    final List<String> images = (json['images'] as List<dynamic>?)
-            ?.map((e) => e.toString())
-            .toList() ??
+    final List<String> images =
+        (json['images'] as List<dynamic>?)?.map((e) => e.toString()).toList() ??
         [];
 
     return Product(

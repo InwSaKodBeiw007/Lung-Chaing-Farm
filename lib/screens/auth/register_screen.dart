@@ -20,7 +20,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _farmNameController = TextEditingController();
   final _addressController = TextEditingController();
   final _contactController = TextEditingController();
-  
+
   String _selectedRole = 'USER';
   bool _isLoading = false;
 
@@ -42,7 +42,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
         address: _addressController.text,
         contactInfo: _contactController.text,
       );
-      NotificationService.showSnackBar('Registration successful! Please log in.');
+      NotificationService.showSnackBar(
+        'Registration successful! Please log in.',
+      );
       // Navigate to LoginScreen instead of just popping
       if (mounted) {
         Navigator.of(context).pushReplacement(
@@ -50,7 +52,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
         );
       }
     } catch (e) {
-      NotificationService.showSnackBar('Failed to register: ${e.toString()}', isError: true);
+      NotificationService.showSnackBar(
+        'Failed to register: ${e.toString()}',
+        isError: true,
+      );
     } finally {
       if (mounted) {
         setState(() {
@@ -81,11 +86,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
             children: [
               // Role Selector
               DropdownButtonFormField<String>(
-                value: _selectedRole,
+                initialValue: _selectedRole,
                 items: ['USER', 'VILLAGER'].map((String value) {
                   return DropdownMenuItem<String>(
                     value: value,
-                    child: Text(value == 'USER' ? 'I want to buy' : 'I am a Villager (Seller)'),
+                    child: Text(
+                      value == 'USER'
+                          ? 'I want to buy'
+                          : 'I am a Villager (Seller)',
+                    ),
                   );
                 }).toList(),
                 onChanged: (newValue) {
@@ -127,23 +136,28 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   controller: _farmNameController,
                   decoration: const InputDecoration(labelText: 'Farm Name'),
                   validator: (value) {
-                    if (_selectedRole == 'VILLAGER' && (value == null || value.isEmpty)) {
+                    if (_selectedRole == 'VILLAGER' &&
+                        (value == null || value.isEmpty)) {
                       return 'Please enter your farm name';
                     }
                     return null;
                   },
                 ),
-              
+
               // Optional fields
-               TextFormField(
+              TextFormField(
                 controller: _addressController,
-                decoration: const InputDecoration(labelText: 'Address (Optional)'),
+                decoration: const InputDecoration(
+                  labelText: 'Address (Optional)',
+                ),
               ),
-               TextFormField(
+              TextFormField(
                 controller: _contactController,
-                decoration: const InputDecoration(labelText: 'Contact Info (Optional)'),
+                decoration: const InputDecoration(
+                  labelText: 'Contact Info (Optional)',
+                ),
               ),
-              
+
               const SizedBox(height: 20),
               _isLoading
                   ? const Center(child: CircularProgressIndicator())

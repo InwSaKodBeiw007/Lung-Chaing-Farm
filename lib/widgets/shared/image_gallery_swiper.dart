@@ -59,13 +59,15 @@ class _ImageGallerySwiperState extends State<ImageGallerySwiper> {
             controller: _pageController,
             itemCount: widget.imageUrls.length,
             itemBuilder: (context, index) {
-              final fullImageUrl = '${ApiService.baseUrl}/${widget.imageUrls[index].replaceAll('\\\\', '/')}' ;
+              final fullImageUrl =
+                  '${ApiService.baseUrl}/${widget.imageUrls[index].replaceAll('\\\\', '/')}';
               return Image.network(
                 fullImageUrl,
                 fit: BoxFit.cover,
                 width: double.infinity,
-                errorBuilder: (context, error, stackTrace) =>
-                    const Center(child: Icon(Icons.broken_image, size: 50, color: Colors.red)),
+                errorBuilder: (context, error, stackTrace) => const Center(
+                  child: Icon(Icons.broken_image, size: 50, color: Colors.red),
+                ),
               );
             },
           ),
@@ -86,7 +88,7 @@ class _ImageGallerySwiperState extends State<ImageGallerySwiper> {
                       shape: BoxShape.circle,
                       color: _currentPage == index
                           ? Colors.white
-                          : Colors.white.withOpacity(0.5),
+                          : Colors.white.withAlpha((255 * 0.5).round()),
                     ),
                   );
                 }).toList(),

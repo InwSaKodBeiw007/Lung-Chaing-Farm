@@ -1,6 +1,6 @@
 // lib/widgets/product_card.dart
 import 'package:flutter/material.dart';
-import 'package:lung_chaing_farm/services/api_service.dart'; // Ensure this is imported
+// Ensure this is imported
 import 'package:lung_chaing_farm/services/audio_service.dart'; // Import AudioService
 import 'package:lung_chaing_farm/screens/auth/register_screen.dart'; // Import RegisterScreen
 import 'package:lung_chaing_farm/widgets/shared/image_gallery_swiper.dart'; // Import ImageGallerySwiper
@@ -29,7 +29,11 @@ class ProductCard extends StatelessWidget {
     final int id = product['id'];
 
     // Retrieve imageUrls as a list
-    final List<String> imageUrls = (product['image_urls'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [];
+    final List<String> imageUrls =
+        (product['image_urls'] as List<dynamic>?)
+            ?.map((e) => e.toString())
+            .toList() ??
+        [];
 
     final bool isLowStock = stock < 5;
 
@@ -46,14 +50,14 @@ class ProductCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              child: ImageGallerySwiper(imageUrls: imageUrls),
-            ),
+            Expanded(child: ImageGallerySwiper(imageUrls: imageUrls)),
             const SizedBox(height: 8.0),
             Text(
               name,
-              style:
-                  const TextStyle(fontSize: 16.0, fontWeight: FontWeight.bold),
+              style: const TextStyle(
+                fontSize: 16.0,
+                fontWeight: FontWeight.bold,
+              ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -77,23 +81,33 @@ class ProductCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                if (isUser || isVillager || isVisitor) // Show Sell/Buy button for all roles
+                if (isUser ||
+                    isVillager ||
+                    isVisitor) // Show Sell/Buy button for all roles
                   ElevatedButton(
-                    onPressed: stock > 0 ? () {
-                      AudioService.playClickSound(); // Play sound on sell/buy
-                      if (isVisitor) {
-                        Navigator.push(context, MaterialPageRoute(builder: (_) => const RegisterScreen()));
-                      } else {
-                        onSell(id, stock);
-                      }
-                    } : null,
+                    onPressed: stock > 0
+                        ? () {
+                            AudioService.playClickSound(); // Play sound on sell/buy
+                            if (isVisitor) {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const RegisterScreen(),
+                                ),
+                              );
+                            } else {
+                              onSell(id, stock);
+                            }
+                          }
+                        : null,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.lightBlue,
                       foregroundColor: Colors.white,
                     ),
                     child: Text(isVisitor ? 'Buy' : 'Sell 1kg'),
                   ),
-                if (isVillager && onEdit != null) // Only show Edit button for Villager
+                if (isVillager &&
+                    onEdit != null) // Only show Edit button for Villager
                   IconButton(
                     icon: const Icon(Icons.edit, color: Colors.blue),
                     onPressed: () {

@@ -2,7 +2,8 @@
 import 'package:flutter/material.dart';
 
 class NotificationService {
-  static GlobalKey<ScaffoldMessengerState> messengerKey = GlobalKey<ScaffoldMessengerState>();
+  static GlobalKey<ScaffoldMessengerState> messengerKey =
+      GlobalKey<ScaffoldMessengerState>();
 
   static void showSnackBar(String message, {bool isError = false}) {
     final snackBar = SnackBar(

@@ -13,7 +13,8 @@ class ApiService {
   // --- Configuration ---
   // Use 'http://10.0.2.2:3000' for Android emulator
   // Use 'http://localhost:3000' for web
-  static const String baseUrl = 'http://localhost:3000'; // Corrected for web development
+  static const String baseUrl =
+      'http://localhost:3000'; // Corrected for web development
   static String? _authToken;
 
   // --- Header Management ---
@@ -32,7 +33,10 @@ class ApiService {
   }
 
   // --- Auth Methods ---
-  static Future<Map<String, dynamic>> login(String email, String password) async {
+  static Future<Map<String, dynamic>> login(
+    String email,
+    String password,
+  ) async {
     final response = await http.post(
       Uri.parse('$baseUrl/auth/login'),
       headers: _getHeaders(),
@@ -42,7 +46,10 @@ class ApiService {
       return json.decode(response.body);
     } else {
       final errorBody = json.decode(response.body);
-      throw ApiException(response.statusCode, errorBody['error'] ?? 'Failed to login');
+      throw ApiException(
+        response.statusCode,
+        errorBody['error'] ?? 'Failed to login',
+      );
     }
   }
 
@@ -73,7 +80,10 @@ class ApiService {
 
     if (response.statusCode != 201) {
       final errorBody = json.decode(response.body);
-      throw ApiException(response.statusCode, errorBody['error'] ?? 'Failed to register');
+      throw ApiException(
+        response.statusCode,
+        errorBody['error'] ?? 'Failed to register',
+      );
     }
   }
 
@@ -90,7 +100,10 @@ class ApiService {
       return List<Map<String, dynamic>>.from(data['products']);
     } else {
       final errorBody = json.decode(response.body);
-      throw ApiException(response.statusCode, errorBody['error'] ?? 'Failed to load products');
+      throw ApiException(
+        response.statusCode,
+        errorBody['error'] ?? 'Failed to load products',
+      );
     }
   }
 
@@ -105,7 +118,10 @@ class ApiService {
       return data['product']; // Assuming backend returns { "product": {...} }
     } else {
       final errorBody = json.decode(response.body);
-      throw ApiException(response.statusCode, errorBody['error'] ?? 'Failed to load product');
+      throw ApiException(
+        response.statusCode,
+        errorBody['error'] ?? 'Failed to load product',
+      );
     }
   }
 
@@ -121,7 +137,7 @@ class ApiService {
   }) async {
     final uri = Uri.parse('$baseUrl/products');
     final request = http.MultipartRequest('POST', uri);
-    
+
     request.headers.addAll({'Authorization': 'Bearer $_authToken'});
 
     request.fields['name'] = name;
@@ -135,12 +151,14 @@ class ApiService {
     }
 
     if (imageBytes != null && imageNames != null) {
-      for(int i = 0; i < imageBytes.length; i++) {
-        request.files.add(http.MultipartFile.fromBytes(
-          'images', // The backend expects an array of 'images'
-          imageBytes[i],
-          filename: imageNames[i],
-        ));
+      for (int i = 0; i < imageBytes.length; i++) {
+        request.files.add(
+          http.MultipartFile.fromBytes(
+            'images', // The backend expects an array of 'images'
+            imageBytes[i],
+            filename: imageNames[i],
+          ),
+        );
       }
     }
 
@@ -151,14 +169,19 @@ class ApiService {
       return json.decode(responseBody.body);
     } else {
       final errorBody = json.decode(responseBody.body);
-      throw ApiException(response.statusCode, errorBody['error'] ?? 'Failed to add product');
+      throw ApiException(
+        response.statusCode,
+        errorBody['error'] ?? 'Failed to add product',
+      );
     }
   }
-  
+
   // Updates a product's stock (e.g., when sold) - Simple stock update
   // This now needs to pass existing image URLs and category to the backend
   // to prevent accidental deletion of images.
-  static Future<Map<String, dynamic>> updateProductStock(int id, double newStock, {
+  static Future<Map<String, dynamic>> updateProductStock(
+    int id,
+    double newStock, {
     String? category,
     List<String>? existingImageUrls,
   }) async {
@@ -167,7 +190,9 @@ class ApiService {
       body['category'] = category;
     }
     if (existingImageUrls != null) {
-      body['existing_image_urls'] = json.encode(existingImageUrls); // Backend expects JSON string
+      body['existing_image_urls'] = json.encode(
+        existingImageUrls,
+      ); // Backend expects JSON string
     }
 
     final response = await http.put(
@@ -179,7 +204,10 @@ class ApiService {
       return json.decode(response.body); // Return the response body
     } else {
       final errorBody = json.decode(response.body);
-      throw ApiException(response.statusCode, errorBody['error'] ?? 'Failed to update product stock');
+      throw ApiException(
+        response.statusCode,
+        errorBody['error'] ?? 'Failed to update product stock',
+      );
     }
   }
 
@@ -197,7 +225,7 @@ class ApiService {
   }) async {
     final uri = Uri.parse('$baseUrl/products/$id');
     final request = http.MultipartRequest('PUT', uri); // Use PUT for updates
-    
+
     request.headers.addAll({'Authorization': 'Bearer $_authToken'});
 
     request.fields['name'] = name;
@@ -216,12 +244,14 @@ class ApiService {
     }
 
     if (newImageBytes != null && newImageNames != null) {
-      for(int i = 0; i < newImageBytes.length; i++) {
-        request.files.add(http.MultipartFile.fromBytes(
-          'images', // The backend expects an array of 'images' for new uploads
-          newImageBytes[i],
-          filename: newImageNames[i],
-        ));
+      for (int i = 0; i < newImageBytes.length; i++) {
+        request.files.add(
+          http.MultipartFile.fromBytes(
+            'images', // The backend expects an array of 'images' for new uploads
+            newImageBytes[i],
+            filename: newImageNames[i],
+          ),
+        );
       }
     }
 
@@ -232,7 +262,10 @@ class ApiService {
       return json.decode(responseBody.body); // Return the response body
     } else {
       final errorBody = json.decode(responseBody.body);
-      throw ApiException(response.statusCode, errorBody['error'] ?? 'Failed to update product');
+      throw ApiException(
+        response.statusCode,
+        errorBody['error'] ?? 'Failed to update product',
+      );
     }
   }
 
@@ -243,7 +276,10 @@ class ApiService {
     );
     if (response.statusCode != 200) {
       final errorBody = json.decode(response.body);
-      throw ApiException(response.statusCode, errorBody['error'] ?? 'Failed to delete product');
+      throw ApiException(
+        response.statusCode,
+        errorBody['error'] ?? 'Failed to delete product',
+      );
     }
   }
 }
