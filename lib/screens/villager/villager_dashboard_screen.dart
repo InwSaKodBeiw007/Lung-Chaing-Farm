@@ -17,6 +17,7 @@ class VillagerDashboardScreen extends StatefulWidget {
 
 class _VillagerDashboardScreenState extends State<VillagerDashboardScreen> {
   late Future<List<Map<String, dynamic>>> _villagerProductsFuture;
+  List<Map<String, dynamic>> _lowStockProducts = []; // New: To hold low stock products
 
   @override
   void initState() {
@@ -29,18 +30,23 @@ class _VillagerDashboardScreenState extends State<VillagerDashboardScreen> {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     if (authProvider.isAuthenticated && authProvider.user?.role == 'VILLAGER') {
       setState(() {
-        // This will need modification in ApiService to filter by owner_id
-        // For now, it fetches all products, and we'll filter on the frontend.
-        // A more efficient way will be to have a backend endpoint /products/my
         _villagerProductsFuture = ApiService.getProducts().then((allProducts) {
-          return allProducts.where((product) =>
+          final ownedProducts = allProducts.where((product) =>
               product['owner_id'] == authProvider.user!.id).toList();
+
+          _lowStockProducts = ownedProducts.where((product) =>
+              (product['stock'] as num?) != null &&
+              (product['low_stock_threshold'] as num?) != null &&
+              (product['stock'] as num) <= (product['low_stock_threshold'] as num)).toList();
+          
+          return ownedProducts;
         });
       });
     } else {
       // If not authenticated or not a villager, clear products
       setState(() {
         _villagerProductsFuture = Future.value([]);
+        _lowStockProducts = [];
       });
     }
   }
@@ -135,25 +141,67 @@ class _VillagerDashboardScreenState extends State<VillagerDashboardScreen> {
           } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
             return const Center(child: Text('No products added yet.'));
           } else {
-            return GridView.builder(
-              padding: const EdgeInsets.all(8.0),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                crossAxisSpacing: 8.0,
-                mainAxisSpacing: 8.0,
-                childAspectRatio: 0.75,
-              ),
-              itemCount: snapshot.data!.length,
-              itemBuilder: (context, index) {
-                final product = snapshot.data![index];
-                return ProductCard(
-                  product: product,
-                  onSell: _sellProduct,
-                  onDelete: _deleteProduct,
-                  userRole: currentUserRole,
-                  onEdit: () => _editProduct(product['id']), // Pass onEdit callback
-                );
-              },
+            return Column(
+              children: [
+                if (_lowStockProducts.isNotEmpty)
+                  Card(
+                    margin: const EdgeInsets.all(8.0),
+                    color: Colors.red[50],
+                    child: Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Low Stock Alerts:',
+                            style: TextStyle(
+                                fontSize: 18.0,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.red),
+                          ),
+                          const Divider(),
+                          ListView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: _lowStockProducts.length,
+                            itemBuilder: (context, index) {
+                              final product = _lowStockProducts[index];
+                              return Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 4.0),
+                                child: Text(
+                                  '${product['name']}: ${product['stock']}kg (Threshold: ${product['low_stock_threshold']}kg)',
+                                  style: const TextStyle(fontSize: 16.0),
+                                ),
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                Expanded(
+                  child: GridView.builder(
+                    padding: const EdgeInsets.all(8.0),
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      crossAxisSpacing: 8.0,
+                      mainAxisSpacing: 8.0,
+                      childAspectRatio: 0.75,
+                    ),
+                    itemCount: snapshot.data!.length,
+                    itemBuilder: (context, index) {
+                      final product = snapshot.data![index];
+                      return ProductCard(
+                        product: product,
+                        onSell: _sellProduct,
+                        onDelete: _deleteProduct,
+                        userRole: currentUserRole,
+                        onEdit: () => _editProduct(product['id']),
+                      );
+                    },
+                  ),
+                ),
+              ],
             );
           }
         },
