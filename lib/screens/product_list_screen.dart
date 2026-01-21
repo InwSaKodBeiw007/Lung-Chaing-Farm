@@ -7,6 +7,7 @@ import 'package:lung_chaing_farm/screens/add_product_screen.dart';
 import 'package:lung_chaing_farm/screens/auth/login_screen.dart';
 import 'package:lung_chaing_farm/screens/auth/register_screen.dart';
 import 'package:lung_chaing_farm/services/audio_service.dart';
+import 'package:lung_chaing_farm/services/notification_service.dart'; // Import NotificationService
 
 class ProductListScreen extends StatefulWidget {
   const ProductListScreen({super.key});

@@ -66,7 +66,20 @@ class _VillagerDashboardScreenState extends State<VillagerDashboardScreen> {
   void _sellProduct(int productId, double currentStock) async {
     if (currentStock > 0) {
       try {
-        await ApiService.updateProductStock(productId, currentStock - 1);
+        // Fetch full product details to get existing image URLs and category
+        final productDetails = await ApiService.getProductById(productId);
+        final List<String> existingImageUrls = (productDetails['image_urls'] as List<dynamic>?)
+                ?.map((e) => e.toString())
+                .toList() ??
+            [];
+        final String? category = productDetails['category'];
+
+        await ApiService.updateProductStock(
+          productId,
+          currentStock - 1,
+          category: category,
+          existingImageUrls: existingImageUrls,
+        );
         _fetchVillagerProducts(); // Refresh products after selling
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(

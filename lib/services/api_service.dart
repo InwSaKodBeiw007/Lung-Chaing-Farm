@@ -156,11 +156,24 @@ class ApiService {
   }
   
   // Updates a product's stock (e.g., when sold) - Simple stock update
-  static Future<void> updateProductStock(int id, double newStock) async {
+  // This now needs to pass existing image URLs and category to the backend
+  // to prevent accidental deletion of images.
+  static Future<void> updateProductStock(int id, double newStock, {
+    String? category,
+    List<String>? existingImageUrls,
+  }) async {
+    final Map<String, dynamic> body = {'stock': newStock};
+    if (category != null) {
+      body['category'] = category;
+    }
+    if (existingImageUrls != null) {
+      body['existing_image_urls'] = json.encode(existingImageUrls); // Backend expects JSON string
+    }
+
     final response = await http.put(
       Uri.parse('$baseUrl/products/$id'),
       headers: _getHeaders(),
-      body: json.encode({'stock': newStock}),
+      body: json.encode(body),
     );
     if (response.statusCode != 200) {
       final errorBody = json.decode(response.body);
