@@ -8,9 +8,9 @@ import 'package:lung_chaing_farm/services/api_service.dart';
 import 'package:lung_chaing_farm/widgets/product_card.dart';
 import 'package:lung_chaing_farm/screens/add_product_screen.dart';
 import 'package:lung_chaing_farm/screens/villager/low_stock_products_screen.dart'; // Import LowStockProductsScreen
-import 'package:lung_chaing_farm/services/audio_service.dart';
 import 'package:lung_chaing_farm/services/notification_service.dart'; // Import NotificationService
 import 'package:lung_chaing_farm/models/product.dart'; // Import Product model
+import 'package:lung_chaing_farm/widgets/refresh_button.dart'; // Import RefreshButton
 
 class VillagerDashboardScreen extends StatefulWidget {
   const VillagerDashboardScreen({super.key});
@@ -194,13 +194,7 @@ class _VillagerDashboardScreenState extends State<VillagerDashboardScreen> {
               );
             },
           ),
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () {
-              AudioService.playClickSound();
-              _fetchVillagerProducts();
-            },
-          ),
+          RefreshButton(onPressed: _fetchVillagerProducts),
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Logout',

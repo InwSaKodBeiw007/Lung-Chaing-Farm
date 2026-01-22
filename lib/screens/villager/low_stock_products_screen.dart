@@ -4,9 +4,9 @@ import 'package:intl/intl.dart';
 import 'package:lung_chaing_farm/providers/auth_provider.dart';
 import 'package:lung_chaing_farm/providers/low_stock_provider.dart';
 import 'package:lung_chaing_farm/models/product.dart';
-import 'package:lung_chaing_farm/services/audio_service.dart';
 import 'package:lung_chaing_farm/services/notification_service.dart';
 import 'package:lung_chaing_farm/widgets/product_transaction_history.dart';
+import 'package:lung_chaing_farm/widgets/refresh_button.dart';
 
 class LowStockProductsScreen extends StatefulWidget {
   const LowStockProductsScreen({super.key});
@@ -49,15 +49,7 @@ class _LowStockProductsScreenState extends State<LowStockProductsScreen> {
       appBar: AppBar(
         title: const Text('Low Stock Products'),
         backgroundColor: Colors.red[700],
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () => {
-              AudioService.playClickSound(),
-              _fetchLowStockProducts,
-            },
-          ),
-        ],
+        actions: [RefreshButton(onPressed: _fetchLowStockProducts)],
       ),
       body: Consumer<LowStockProvider>(
         builder: (context, lowStockProvider, child) {

@@ -5,9 +5,9 @@ import 'package:lung_chaing_farm/services/api_service.dart';
 import 'package:lung_chaing_farm/widgets/product_card.dart';
 import 'package:lung_chaing_farm/screens/auth/login_screen.dart';
 import 'package:lung_chaing_farm/screens/auth/register_screen.dart';
-import 'package:lung_chaing_farm/services/audio_service.dart';
 import 'package:lung_chaing_farm/services/notification_service.dart'; // Import NotificationService
 import 'package:lung_chaing_farm/models/product.dart'; // Import Product model
+import 'package:lung_chaing_farm/widgets/refresh_button.dart'; // Import RefreshButton
 
 class ProductListScreen extends StatefulWidget {
   const ProductListScreen({super.key});
@@ -77,13 +77,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
         title: const Text('Lung Chaing Farm Marketplace'),
         backgroundColor: Colors.lightGreen,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () {
-              AudioService.playClickSound();
-              _fetchProducts();
-            },
-          ),
+          RefreshButton(onPressed: _fetchProducts),
           Consumer<AuthProvider>(
             builder: (context, auth, child) {
               if (auth.isAuthenticated) {

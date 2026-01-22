@@ -4,7 +4,7 @@ import 'package:lung_chaing_farm/providers/auth_provider.dart';
 import 'package:lung_chaing_farm/providers/low_stock_provider.dart'; // Import LowStockProvider
 import 'package:lung_chaing_farm/screens/product_list_screen.dart';
 import 'package:lung_chaing_farm/screens/villager/villager_dashboard_screen.dart';
-import 'package:lung_chaing_farm/screens/user/user_home_screen.dart';
+
 import 'package:lung_chaing_farm/services/notification_service.dart'; // Import NotificationService
 import 'package:lung_chaing_farm/services/api_service.dart'; // Import ApiService
 
@@ -49,8 +49,8 @@ class AuthWrapper extends StatelessWidget {
         if (authProvider.isAuthenticated) {
           if (authProvider.user!.role == 'VILLAGER') {
             return const VillagerDashboardScreen();
-          } else if (authProvider.user!.role == 'USER') {
-            return const UserHomeScreen(); // Placeholder for now
+            // } else if (authProvider.user!.role == 'USER') {
+            // return const UserHomeScreen(); // Placeholder for now
           }
         }
         // If not authenticated or role not handled, show the public product list

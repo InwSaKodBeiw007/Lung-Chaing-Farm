@@ -4,7 +4,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:lung_chaing_farm/services/api_service.dart';
-import 'package:lung_chaing_farm/services/audio_service.dart'; // Import AudioService
 import 'package:lung_chaing_farm/models/product.dart'; // Import Product model
 import 'package:lung_chaing_farm/services/notification_service.dart'; // Import NotificationService
 
@@ -71,7 +70,6 @@ class _EditProductScreenState extends State<EditProductScreen> {
   }
 
   Future<void> _pickNewImage() async {
-    AudioService.playClickSound();
     final ImagePicker picker = ImagePicker();
     final XFile? image = await picker.pickImage(source: ImageSource.gallery);
     if (image != null) {
@@ -105,7 +103,6 @@ class _EditProductScreenState extends State<EditProductScreen> {
   }
 
   Future<void> _submitForm() async {
-    AudioService.playClickSound();
     if (!_formKey.currentState!.validate()) {
       return;
     }
@@ -177,7 +174,6 @@ class _EditProductScreenState extends State<EditProductScreen> {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
-            AudioService.playClickSound();
             Navigator.pop(context);
           },
         ),
