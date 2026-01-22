@@ -9,9 +9,20 @@ const path = require('path');
 const fs = require('fs');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const { v4: uuidv4 } = require('uuid'); // Import UUID for jti generation
 const { sendLowStockEmail } = require('./email_service'); // Import email service
 
 const JWT_SECRET = process.env.JWT_SECRET; // Load from environment variables
+const REFRESH_TOKEN_SECRET = process.env.REFRESH_TOKEN_SECRET || JWT_SECRET; // Use a separate secret for refresh tokens if available
+
+// Helper function to generate a unique JWT ID (JTI)
+const generateJti = () => uuidv4();
+
+// Helper function to hash a token
+const hashToken = (token) => {
+  const crypto = require('crypto');
+  return crypto.createHash('sha256').update(token).digest('hex');
+};
 
 const app = express();
 const port = 3000;
@@ -65,6 +76,20 @@ const db = new sqlite3.Database(dbPath, (err) => {
       )`, (err) => {
         if (err) console.error('Error creating transactions table', err.message);
         else console.log('Transactions table is ready.');
+      });
+
+      // Create refresh_tokens table
+      db.run(`CREATE TABLE IF NOT EXISTS refresh_tokens (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        token_hash TEXT NOT NULL UNIQUE,
+        jti TEXT NOT NULL UNIQUE,
+        expires_at INTEGER NOT NULL,
+        created_at INTEGER NOT NULL,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      )`, (err) => {
+        if (err) console.error('Error creating refresh_tokens table', err.message);
+        else console.log('Refresh tokens table is ready.');
       });
 
       // Original products table creation
@@ -207,11 +232,17 @@ const verifyToken = (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
-    req.user = decoded;
+    // Fetch the full user object from the database to get the user's integer ID
+    db.get('SELECT id, email, role, farm_name FROM users WHERE email = ?', [decoded.email], (err, user) => {
+      if (err || !user) {
+        return res.status(401).json({ error: 'User not found or database error.' });
+      }
+      req.user = user; // Attach the full user object with id, email, role, etc.
+      return next();
+    });
   } catch (err) {
     return res.status(401).json({ error: 'Invalid Token.' });
   }
-  return next();
 };
 
 
@@ -224,7 +255,7 @@ app.get('/villager/low-stock-products', verifyToken, (req, res) => {
     return res.status(403).json({ error: 'Forbidden: Only villagers can view low stock products.' });
   }
 
-  const villagerId = req.user.email;
+  const villagerId = req.user.id;
 
   const sql = `
         SELECT
@@ -325,7 +356,7 @@ app.post('/products', verifyToken, upload.array('images', 5), (req, res) => {
   }
 
   const { name, price, stock, category, low_stock_threshold } = req.body;
-  const owner_id = req.user.email;
+  const owner_id = req.user.id;
 
   if (!name || price === undefined || stock === undefined) {
     return res.status(400).json({ error: 'Missing required fields: name, price, stock' });
@@ -368,7 +399,7 @@ app.post('/products/:productId/purchase', verifyToken, (req, res) => {
 
   const productId = req.params.productId;
   const { quantity } = req.body;
-  const userId = req.user.email;
+  const userId = req.user.id;
 
   if (!quantity || typeof quantity !== 'number' || quantity <= 0) {
     return res.status(400).json({ error: 'Valid positive quantity is required.' });
@@ -459,7 +490,7 @@ app.post('/products/:productId/purchase', verifyToken, (req, res) => {
 app.put('/products/:id', verifyToken, upload.array('images'), (req, res) => {
   const { name, price, stock, category, low_stock_threshold, existing_image_urls } = req.body;
   const productId = req.params.id;
-  const userId = req.user.email;
+  const userId = req.user.id;
   let imagesToKeep = [];
   if (existing_image_urls) {
     try {
@@ -602,7 +633,7 @@ app.put('/products/:id', verifyToken, upload.array('images'), (req, res) => {
 // DELETE: Remove a product (Protected, Owner Only)
 app.delete('/products/:id', verifyToken, (req, res) => {
   const productId = req.params.id;
-  const userId = req.user.email;
+  const userId = req.user.id;
 
   // First, verify ownership
   db.get('SELECT owner_id FROM products WHERE id = ?', [productId], (err, product) => {
@@ -695,7 +726,7 @@ app.get('/products/:id', (req, res) => {
 app.get('/products/:productId/transactions', verifyToken, (req, res) => {
   const productId = req.params.productId;
   const { days } = req.query; // Optional query parameter for filtering by days
-  const userId = req.user.email;
+  const userId = req.user.id;
 
   // First, verify ownership
   db.get('SELECT owner_id FROM products WHERE id = ?', [productId], (err, product) => {

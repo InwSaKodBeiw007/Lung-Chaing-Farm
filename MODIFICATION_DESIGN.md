@@ -1,174 +1,210 @@
-# MODIFICATION_DESIGN.md
+# Modification Design Document: Implementing Refresh Tokens and Token Revocation
 
 ## 1. Overview
 
-This document outlines the design for enhancing the "Lung Chaing Farm" application with a low-stock monitoring and sales transaction history feature. The primary goal is to provide Villager users with real-time insights into their low-stock products and historical sales data for each product. This involves modifications to the Flutter frontend, Node.js backend, and the SQLite database schema.
+This document outlines the design for enhancing the authentication system of the Lung Chaing Farm application by implementing a robust refresh token mechanism alongside token revocation capabilities. The primary goals are to improve security by utilizing short-lived access tokens and to enhance user experience by providing persistent login sessions without frequent re-authentication.
 
 ## 2. Detailed Analysis of the Goal or Problem
 
-The existing application allows Villagers to manage products and view a "Low Stock Overview" on their dashboard. However, it lacks a prominent, easily accessible indicator for low-stock products and a detailed historical view of sales for individual products.
+The current authentication system relies solely on a single, long-lived JWT access token. While simple, this approach presents significant security and user experience challenges:
 
-The current request introduces the following features:
+*   **Security Risk with Long-Lived Tokens:** If a long-lived access token is compromised, an attacker gains prolonged unauthorized access until the token naturally expires. There is no immediate mechanism to invalidate or revoke a compromised token.
+*   **Lack of Immediate Revocation:** In events such as user logout, password change, or account compromise, the current system cannot immediately invalidate an issued access token. It must wait for the token's natural expiration.
+*   **Poor User Experience with Short-Lived Tokens (if implemented alone):** Switching to very short-lived access tokens (e.g., 5-15 minutes) would improve security by limiting the window of exposure, but it would severely degrade the user experience by forcing frequent re-logins.
 
-*   **Low Stock Indicator in AppBar:** A "shopping cart-like" icon in the AppBar, visible only to Villager users, displaying a badge with the count of *currently* low-stock products. Clicking this icon should navigate to a dedicated low-stock products view.
-*   **Low Stock Products View:** This view (likely an enhanced section of the existing Villager Dashboard or a new screen) will list all products that are currently below their defined low-stock threshold. For each product, it will display the current stock and the date the product *entered* its low-stock state.
-*   **Expandable Transaction History:** Within the low-stock products view, each product entry will have an expandable section that, when clicked, reveals its sales transaction history. This history will show the date and quantity sold ("day with how many kg user pull for") for each transaction.
-*   **Product Card Transaction History:** When any product card (from any product listing, not just low-stock) is clicked, it should navigate to a product details view that also presents the sales transaction history for that product.
-*   **Backend Transaction Storage:** The backend must record every sale transaction, including the product sold, quantity, and date.
-*   **Automated Transaction Deletion:** Removed, as per user's decision to retain all transaction data. Archival to CSV will be handled externally.
-*   **`low_stock_since_date` Tracking:** The backend must track and update a `low_stock_since_date` field for each product, recording when its stock first falls below its threshold. This date should be cleared when the stock recovers above the threshold.
+The goal is to address these issues by introducing:
+*   **Short-lived Access Tokens:** To minimize the impact of token compromise.
+*   **Long-lived Refresh Tokens:** To allow users to obtain new access tokens without re-entering credentials, maintaining a smooth user experience.
+*   **Server-Side Token Revocation:** To enable immediate invalidation of refresh tokens (and by extension, access to new access tokens) upon logout or security events.
 
 ## 3. Alternatives Considered
 
-### 3.1. Storing `low_stock_since_date`
+### a) "Multiple Secrets Per Role" for JWT Verification (Rejected)
 
-*   **Option A: Add `low_stock_since_date` to `products` table (Chosen)**
-    *   **Pros:** Simple to implement, directly links the low-stock status to the product.
-    *   **Cons:** Requires updating the product record frequently. If the stock fluctuates above and below the threshold, the `low_stock_since_date` might change multiple times, potentially losing the *initial* date it first went low since the feature was implemented.
-    *   **Rationale for Choice:** Given the current requirements, tracking the *most recent* date a product entered low-stock state is sufficient. This option is efficient and avoids creating additional tables for simple timestamping.
+*   **Description:** This approach involved using different `JWT_SECRET` keys for each user role (e.g., `VISITOR_JWT_SECRET`, `USER_JWT_SECRET`, `VILLAGER_JWT_SECRET`) to allow more granular control over token issuance and validation.
+*   **Reason for Rejection:** Research indicates that this is generally *not* a recommended best practice. It introduces significant complexity in managing multiple secrets, key rotation, and the verification process within the middleware. The security gains are often minimal compared to the complexity, as the primary authentication logic remains similar across roles. A single, robust secret with role claims in the payload, combined with proper authorization middleware, is the established best practice.
 
-*   **Option B: Separate `low_stock_events` table:**
-    *   **Pros:** Provides a full historical log of every time a product entered/exited low stock.
-    *   **Cons:** Over-complicates the requirement since the user only asked for the "date the product entered a low-stock state" (singular) and not a full history. Increases database complexity and query overhead.
+### b) Short-lived Access Tokens Only (Rejected)
 
-### 3.2. Automated Transaction Deletion
+*   **Description:** Issue only short-lived access tokens (e.g., 5-15 minutes) and require users to re-authenticate with their username and password once the token expires.
+*   **Reason for Rejection:** This offers high security but results in a very poor user experience due to frequent mandatory re-logins, making the application cumbersome to use.
 
-*   **Option B: No automated deletion (Chosen - as per user's request)**
-    *   **Pros:** Retains full historical data in the database. Simplifies backend implementation by removing cron job.
-    *   **Cons:** Database size will continuously grow, potentially impacting long-term performance without a robust archival strategy. Requires external management (e.g., CSV export) for data offloading.
-    *   **Rationale for Choice:** User explicitly requested to keep all transaction data in SQLite and manage archival externally.
+### c) Long-lived Access Tokens Only (Rejected)
 
-### 3.3. Transaction History Storage
+*   **Description:** Continue with the current system of using a single, long-lived access token.
+*   **Reason for Rejection:** This was rejected due to the severe security implications. A compromised long-lived token grants an attacker extended, undetectable access, and there's no way to revoke it instantly.
 
-*   **Option A: New `transactions` table (Chosen)**
-    *   **Pros:** Clear separation of concerns, optimized for transaction data.
-    *   **Cons:** Requires a new table and associated schema changes.
-    *   **Rationale for Choice:** This is the most appropriate and scalable solution for storing historical sales data.
+### d) Static "Random Number" in JWT Payload for Verification (Rejected)
+
+*   **Description:** The proposal was to add a static "random number" (e.g., `"21284y789012y4981238098"`) to the JWT payload during signing and then check for its presence and specific value in the `verifyToken` middleware.
+*   **Reason for Rejection:** This approach provides obfuscation rather than true cryptographic security. If the `JWT_SECRET` is compromised, an attacker can simply include the known "random number" in their forged tokens. It doesn't add a new layer of cryptographic integrity beyond what `jwt.verify()` already provides and is considered "security by obscurity," which is not a recommended practice. It also introduces inflexibility, as changing the "random number" would invalidate all existing tokens.
 
 ## 4. Detailed Design for the Modification
 
-### 4.1. Database Schema Changes
+The chosen design incorporates short-lived access tokens and long-lived, server-side-managed refresh tokens with a robust revocation mechanism.
 
-A new table, `transactions`, will be created to store sales records. The `products` table will be modified to include `low_stock_since_date`.
+### 4.1. New Database Table: `refresh_tokens`
 
-#### `products` table modification:
+A new table will be created in the SQLite database to store and manage refresh tokens. This table will enable server-side tracking and revocation.
 
-```sql
--- Add a new column to track when a product entered a low-stock state
-ALTER TABLE products ADD COLUMN low_stock_since_date INTEGER; -- Stored as Unix timestamp
-```
-
-#### New `transactions` table:
+**Schema Definition:**
 
 ```sql
-CREATE TABLE transactions (
+CREATE TABLE IF NOT EXISTS refresh_tokens (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    product_id INTEGER NOT NULL,
-    quantity_sold INTEGER NOT NULL,
-    date_of_sale INTEGER NOT NULL, -- Unix timestamp
-    user_id INTEGER NOT NULL, -- The user who bought the product
-    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL,
+    token_hash TEXT NOT NULL UNIQUE, -- Store a cryptographic hash of the refresh token
+    jti TEXT NOT NULL UNIQUE,       -- JWT ID claim from the refresh token payload
+    expires_at INTEGER NOT NULL,    -- Unix timestamp for refresh token expiration
+    created_at INTEGER NOT NULL,    -- Unix timestamp for refresh token creation
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 ```
 
-### 4.2. Backend (Node.js with Express) Design
+**Field Purposes:**
+*   `id`: Primary key, auto-incrementing integer.
+*   `user_id`: Foreign key referencing the `users` table, linking the refresh token to a specific user. `ON DELETE CASCADE` ensures refresh tokens are deleted if the user is deleted.
+*   `token_hash`: Stores a cryptographic hash (e.g., SHA256) of the refresh token. The raw refresh token is never stored directly for security.
+*   `jti`: A unique JWT ID claim included in the refresh token's payload. This identifier is used for specific token revocation and whitelisting.
+*   `expires_at`: A Unix timestamp indicating when the refresh token expires. This allows for automatic cleanup of expired tokens and validation.
+*   `created_at`: A Unix timestamp indicating when the refresh token was created.
 
-#### 4.2.1. New API Endpoints
+**Indexing:**
+Indexes will be added to `user_id` and `jti` columns to ensure efficient lookups during validation and revocation operations.
 
-*   **`POST /api/products/:productId/purchase`**:
-    *   **Purpose:** Handles a product purchase, decrements stock, records transaction, updates `low_stock_since_date`.
-    *   **Input:** `productId` (path param), `quantity` (body).
-    *   **Logic:**
-        1.  Authenticate user (Buyer role required).
-        2.  Fetch product by `productId`.
-        3.  Check if `quantity` is available.
-        4.  Decrement `stock` in `products` table.
-        5.  Create a new entry in `transactions` table with `product_id`, `quantity_sold`, `date_of_sale` (current timestamp), `user_id`.
-        6.  Check if new `stock` is below `low_stock_threshold`:
-            *   If yes, and `low_stock_since_date` is NULL, set `low_stock_since_date` to current timestamp in `products` table.
-            *   If no, and `low_stock_since_date` is NOT NULL, set `low_stock_since_date` to NULL.
-        7.  Return updated product information.
-        8.  **Trigger Notifications:** If product enters low-stock state, send notification (e.g., socket.io, for future implementation as "toast ...something").
-*   **`GET /api/villager/low-stock-products`**:
-    *   **Purpose:** Retrieve all products for the authenticated Villager that are currently below their low-stock threshold.
-    *   **Logic:**
-        1.  Authenticate user (Villager role required).
-        2.  Fetch products where `owner_id` matches Villager's ID AND `stock` < `low_stock_threshold`.
-        3.  Return product details including `low_stock_since_date`.
-*   **`GET /api/products/:productId/transactions`**:
-    *   **Purpose:** Retrieve sales transaction history for a specific product, with optional filtering by time period.
-    *   **Input:** `productId` (path param), `days` (query parameter, optional, e.g., `?days=30`).
-    *   **Logic:**
-        1.  Authenticate user (Villager role required, and must be owner of `productId`).
-        2.  Fetch all `transactions` for `productId`.
-        3.  If `days` query parameter is provided, filter transactions to include only those within the last `days` from the current date.
-        4.  Order by `date_of_sale` descending.
-        5.  Return transaction details (date, quantity sold).
+### 4.2. Authentication Flow Changes
 
-### 4.2.2. Transaction Data Retention
+The existing `/auth/login` endpoint will be modified, and two new endpoints, `/auth/refresh` and `/auth/logout`, will be introduced.
 
-*   The application will retain all sales transaction data in the SQLite database.
-*   The previous plan for automated deletion of old transactions has been removed.
-*   Archival of old data to CSV will be handled externally by the user.
+#### a) Modified Login Endpoint (`POST /auth/login`)
 
-### 4.3. Frontend (Flutter) Design
+The `login` endpoint will now:
+1.  Authenticate user credentials (email, password) as before.
+2.  Upon successful authentication:
+    *   **Generate an Access Token:** A new JWT (Access Token) will be created with a **short expiration time** (e.g., 15 minutes). Its payload will contain `email` and `role`.
+    *   **Generate a Refresh Token:** A new JWT (Refresh Token) will be created with a **long expiration time** (e.g., 7 days or more). Its payload will contain `email`, `role`, and a unique `jti` (JWT ID). A cryptographically secure random string will be used to generate the `jti`.
+    *   **Store Refresh Token:** The Refresh Token's raw string will be cryptographically hashed. This hash, along with its `jti`, `user_id` (retrieved from `users` table based on `email`), `expires_at`, and `created_at` will be stored in the new `refresh_tokens` database table.
+    *   **Response:**
+        *   The **Access Token** will be sent in the JSON response body.
+        *   The **Refresh Token** will be set as an `HttpOnly`, `Secure` cookie in the response headers. `HttpOnly` prevents client-side JavaScript access (mitigating XSS), and `Secure` ensures it's only sent over HTTPS.
 
-#### 4.3.1. State Management (`AuthProvider` and new `LowStockProvider`)
+#### b) New Refresh Endpoint (`POST /auth/refresh`)
 
-*   **`AuthProvider`:** Will need to identify if the logged-in user is a Villager.
-*   **New `LowStockProvider` (or extend existing `AuthProvider`):**
-    *   Purpose: Manages the state of low-stock products for the authenticated Villager.
-    *   Contains: `List<Product>` of low-stock products, `lowStockCount`.
-    *   Methods:
-        *   `fetchLowStockProducts()`: Calls `GET /api/villager/low-stock-products`.
-        *   `getLowStockCount()`: Returns the number of low-stock products.
-    *   Will notify listeners when `lowStockCount` changes.
+This new endpoint will handle refreshing expired access tokens using a valid refresh token.
+1.  **Request:** The client will send an API request to this endpoint. The Refresh Token will be automatically sent via the `HttpOnly` cookie.
+2.  **Verification:**
+    *   Extract the Refresh Token from the `HttpOnly` cookie.
+    *   Verify the Refresh Token's signature using `JWT_SECRET`.
+    *   Extract `email`, `role`, and `jti` from the Refresh Token's payload.
+    *   **Whitelisting Check:** Query the `refresh_tokens` table using the extracted `jti` and `user_id` (derived from email) to ensure the token is valid and not expired/revoked. Also, compare the hash of the *received* refresh token with the `token_hash` stored in the database.
+3.  **Refresh Token Rotation:** If the Refresh Token is valid and matches the stored hash:
+    *   Invalidate the old Refresh Token by deleting its record from the `refresh_tokens` table.
+    *   Generate a **new short-lived Access Token** and a **new long-lived Refresh Token** with a new `jti`.
+    *   Hash the new Refresh Token and store its details (hash, new `jti`, `user_id`, `expires_at`, `created_at`) in the `refresh_tokens` table.
+    *   **Response:** Send the new Access Token in the JSON response body and set the new Refresh Token in an `HttpOnly`, `Secure` cookie.
+4.  **Error Handling:** If the Refresh Token is invalid, expired, or not found in the whitelist, return a 401 Unauthorized response, prompting the user to re-login.
 
-#### 4.3.2. AppBar Low Stock Indicator
+#### c) New Logout Endpoint (`POST /auth/logout`)
 
-*   **Component:** An `IconButton` with a `Badge` widget.
-*   **Placement:** In the `AppBar` of screens accessible to Villagers.
-*   **Icon:** Use the provided `@assets/icons/shop-cart.png`.
-*   **Badge Content:** Dynamically display `LowStockProvider.lowStockCount`.
-*   **Navigation:** On tap, navigate to the `LowStockProductsScreen`.
+This new endpoint will handle user logout and immediately revoke the refresh token.
+1.  **Request:** The client will send an API request to this endpoint. The Refresh Token will be automatically sent via the `HttpOnly` cookie.
+2.  **Revocation:**
+    *   Extract the Refresh Token from the `HttpOnly` cookie.
+    *   Verify the Refresh Token's signature.
+    *   Extract `email`, `role`, and `jti` from the Refresh Token's payload.
+    *   Delete the corresponding record from the `refresh_tokens` table using the `jti` (or `user_id` if revoking all tokens for a user), effectively revoking the Refresh Token and all associated Access Tokens.
+    *   Clear the Refresh Token cookie on the client side.
+3.  **Response:** Return a 200 OK response indicating successful logout.
 
-#### 4.3.3. `LowStockProductsScreen` (New Screen/Section)
+### 4.3. Middleware (`verifyToken`)
 
-*   **Access:** Navigated to from the AppBar indicator.
-*   **Content:**
-    *   Fetches and displays `List<Product>` from `LowStockProvider`.
-    *   For each product: `ProductCard` (or similar widget) showing product details, current stock, and `low_stock_since_date`.
-    *   An `ExpansionTile` or similar widget to reveal `ProductTransactionHistory` component.
+The `verifyToken` middleware will remain largely the same but will now **specifically operate on the short-lived Access Tokens** received in the `Authorization: Bearer <token>` header.
+1.  Extract the Access Token.
+2.  Verify its signature using `JWT_SECRET`.
+3.  Ensure it's not expired.
+4.  Attach `req.user = decoded` (containing `email` and `role`) to the request object.
+5.  Call `next()` if valid, otherwise return 401 Unauthorized.
 
-#### 4.3.4. `ProductTransactionHistory` Widget (New Reusable Widget)
+### 4.4. `JWT_SECRET` Management
 
-*   **Purpose:** Displays a list of transactions for a given product.
-*   **Input:** `productId`.
-*   **Logic:**
-    *   Fetches transaction data using `GET /api/products/:productId/transactions`.
-    *   Displays each transaction as "User buy total" and "date".
+*   The existing `JWT_SECRET` will be used for both Access Token and Refresh Token signing.
+*   It will remain stored securely in environment variables.
 
-#### 4.3.5. Product Card & Detail Screen Modifications
+## 5. Diagrams (Mermaid format)
 
-*   **Product Card (`product_card.dart`):** Modify to make the entire card tappable. On tap, navigate to a `ProductDetailScreen` (if not already existing, otherwise enhance existing one).
-*   **`ProductDetailScreen`:** This screen will display comprehensive product information and include the `ProductTransactionHistory` widget for the specific product.
+### 5.1. Authentication Flow Sequence Diagram
 
-### 4.4. UI/UX Considerations
+```mermaid
+sequenceDiagram
+    participant C as Client (Flutter App)
+    participant S as Server (Node.js/Express)
+    participant DB as Database (SQLite)
 
-*   **Notifications:** Implement transient `SnackBar` messages for successful purchases or when a product enters a low-stock state (for Villagers).
-*   **Loading States:** Ensure appropriate loading indicators are displayed while fetching data (e.g., `CircularProgressIndicator`).
-*   **Empty States:** Display a clear message when there are no low-stock products or no transaction history.
+    C->>S: POST /auth/login (email, password)
+    activate S
+    S->>S: Verify credentials (bcrypt.compareSync)
+    S->>S: Get user_id from users table using email
+    S->>S: Generate Access Token (short-lived, payload: email, role)
+    S->>S: Generate Refresh Token (long-lived, payload: email, role, jti)
+    S->>S: Hash Refresh Token (e.g., SHA256)
+    S->>DB: INSERT refresh_tokens (user_id, token_hash, jti, expires_at, created_at)
+    DB-->>S: Confirmation
+    S-->>C: 200 OK + { accessToken } (JSON body)
+    S-->>C: Set-Cookie: refreshToken (HttpOnly, Secure)
+    deactivate S
 
-## 5. Diagrams
+    C->>S: Subsequent API Request (Authorization: Bearer accessToken)
+    activate S
+    S->>S: verifyToken Middleware
+    S->>S: Verify Access Token (signature, expiry)
+    S->>S: Attach req.user (email, role)
+    S->>S: Execute Route Handler (e.g., GET /products)
+    S-->>C: 200 OK + Resource
+    deactivate S
 
-### 5.1. Database Schema (Mermaid Entity-Relationship Diagram)
+    Note over C,S: Access Token expires
+
+    C->>S: POST /auth/refresh (via HttpOnly cookie)
+    activate S
+    S->>S: Extract Refresh Token from cookie
+    S->>S: Verify Refresh Token (signature, expiry, jti)
+    S->>S: Get user_id from users table using email from decoded RT
+    S->>DB: SELECT from refresh_tokens WHERE jti=? AND user_id=? AND expires_at > currentTime
+    DB-->>S: Matching Refresh Token Record
+    S->>S: Compare hash of received Refresh Token with stored token_hash
+    alt If valid and match
+        S->>DB: DELETE old Refresh Token record (jti)
+        S->>S: Generate NEW Access Token
+        S->>S: Generate NEW Refresh Token (new jti)
+        S->>S: Hash NEW Refresh Token
+        S->>DB: INSERT new refresh_tokens (user_id, NEW token_hash, NEW jti, expires_at, created_at)
+        DB-->>S: Confirmation
+        S-->>C: 200 OK + { newAccessToken } (JSON body)
+        S-->>C: Set-Cookie: newRefreshToken (HttpOnly, Secure)
+    else If invalid or no match
+        S-->>C: 401 Unauthorized + Clear-Cookie: refreshToken
+    end
+    deactivate S
+
+    C->>S: POST /auth/logout (via HttpOnly cookie)
+    activate S
+    S->>S: Extract Refresh Token from cookie
+    S->>S: Verify Refresh Token (signature, expiry, jti)
+    S->>S: Get user_id from users table using email from decoded RT
+    S->>DB: DELETE from refresh_tokens WHERE jti=? AND user_id=?
+    DB-->>S: Confirmation
+    S-->>C: 200 OK + Clear-Cookie: refreshToken
+    deactivate S
+```
+
+### 5.2. Database ER Diagram Update
 
 ```mermaid
 erDiagram
     users ||--o{ products : "owns"
     products ||--o{ product_images : "has"
     products ||--o{ transactions : "has"
+    users ||--o{ refresh_tokens : "has"
 
     users {
         INTEGER id PK
@@ -202,77 +238,36 @@ erDiagram
         INTEGER date_of_sale "Unix timestamp"
         INTEGER user_id FK "users.id"
     }
+
+    refresh_tokens {
+        INTEGER id PK
+        INTEGER user_id FK "users.id"
+        TEXT token_hash UNIQUE
+        TEXT jti UNIQUE
+        INTEGER expires_at
+        INTEGER created_at
+    }
 ```
 
-### 5.2. Frontend Flow (Mermaid Flowchart)
+## 6. Summary of the Design
 
-```mermaid
-graph TD
-    A[Villager Login] --> B{Is User Villager?}
-    B -- Yes --> C[Villager Home/Dashboard]
-    B -- No --> D[Other User Roles]
+This design provides a robust and secure authentication system by:
+*   Employing **short-lived access tokens** to reduce the security risk of compromised tokens.
+*   Utilizing **long-lived refresh tokens** stored securely in `HttpOnly`, `Secure` cookies and tracked server-side in a database.
+*   Implementing **refresh token rotation** to enhance security by ensuring refresh tokens are single-use.
+*   Enabling **immediate token revocation** upon logout or security events by deleting corresponding records from the `refresh_tokens` table.
+*   Maintaining a seamless user experience by allowing silent token refreshing in the background.
 
-    C --> E[AppBar]
-    E --> F{Low Stock Icon Clicked?}
-    F -- Yes --> G[LowStockProductsScreen]
-    F -- No --> C
-
-    G --> H[Fetch Low Stock Products]
-    H --> I{For Each Low Stock Product}
-    I --> J[Display Product Card]
-    J --> K{Expand Transaction History?}
-    K -- Yes --> L[Display ProductTransactionHistory Widget]
-    K -- No --> J
-
-    C --> M[Product Card List]
-    M --> N{Product Card Clicked?}
-    N -- Yes --> O[ProductDetailScreen]
-    N -- No --> M
-
-    O --> P[Display Product Details]
-    O --> Q[Display ProductTransactionHistory Widget]
-```
-
-### 5.3. Backend Data Flow for Purchase (Mermaid Sequence Diagram)
-
-```mermaid
-sequenceDiagram
-    participant FE as Frontend
-    participant BE as Backend
-    participant DB as Database
-
-    FE->>BE: POST /api/products/:productId/purchase {quantity}
-    BE->>BE: Authenticate User (Buyer)
-    BE->>DB: SELECT * FROM products WHERE id = :productId
-    DB-->>BE: Product Data
-    BE->>BE: Check available stock
-    alt Sufficient Stock
-        BE->>DB: UPDATE products SET stock = stock - :quantity WHERE id = :productId
-        BE->>DB: INSERT INTO transactions (...) VALUES (...)
-        BE->>DB: SELECT stock, low_stock_threshold, low_stock_since_date FROM products WHERE id = :productId
-        DB-->>BE: Updated Product Data
-        alt Product enters low-stock
-            BE->>DB: UPDATE products SET low_stock_since_date = :now WHERE id = :productId
-            BE->>BE: Trigger Low Stock Notification (for Villager)
-        else Product recovers from low-stock
-            BE->>DB: UPDATE products SET low_stock_since_date = NULL WHERE id = :productId
-        end
-        BE-->>FE: 200 OK + Updated Product
-    else Insufficient Stock
-        BE-->>FE: 400 Bad Request (Insufficient Stock)
-    end
-```
-
-## 6. Summary
-
-This design integrates low-stock monitoring and sales transaction history into the Lung Chaing Farm application, primarily for Villager users. It involves adding a `transactions` table and `low_stock_since_date` to the `products` table in the SQLite database. The backend will handle new API endpoints for purchases, low-stock product retrieval, and transaction history with filtering. All transaction data will be retained in the database as per user's request. The Flutter frontend will feature an AppBar badge, a dedicated low-stock products screen with expandable transaction history, and enhanced product card interactions. This approach provides a clear and actionable path to fulfilling the requested features.
+This approach balances strong security with practical usability, aligning with modern authentication best practices for JWT-based systems.
 
 ## 7. References to Research URLs
 
-*   **SQLite `ALTER TABLE ADD COLUMN`:** [https://www.sqlite.org/lang_altertable.html](https://www.sqlite.org/lang_altertable.html)
-*   **`node-cron` package:** [https://www.npmjs.com/package/node-cron](https://www.npmjs.com/package/node-cron)
-*   **Flutter `Badge` widget:** [https://api.flutter.dev/flutter/material/Badge-class.html](https://api.flutter.dev/flutter/material/Badge-class.html)
-*   **Flutter `ExpansionTile` widget:** [https://api.flutter.dev/flutter/material/ExpansionTile-class.html](https://api.flutter.dev/flutter/material/ExpansionTile-class.html)
-*   **Mermaid Entity Relationship Diagrams:** [https://mermaid.js.org/syntax/entityRelationshipDiagram.html](https://mermaid.js.org/syntax/entityRelationshipDiagram.html)
-*   **Mermaid Flowcharts:** [https://mermaid.js.org/syntax/flowchart.html](https://mermaid.js.org/syntax/flowchart.html)
-*   **Mermaid Sequence Diagrams:** [https://mermaid.js.org/syntax/sequenceDiagram.html](https://mermaid.js.org/syntax/sequenceDiagram.html)
+*   [JWT Best Practices - DigitalOcean](https://www.digitalocean.com/community/tutorials/how-to-implement-jwt-authentication-in-nodejs-and-mongodb) (General JWT practices, refresh token concept)
+*   [Secure JWTs: Refresh Tokens - Fenil Sonani](https://fenilsonani.com/articles/secure-jwts-refresh-tokens) (Detailed refresh token flow, rotation)
+*   [JWT Revocation Strategies - SuperTokens](https://supertokens.com/blog/jwt-revocation-strategies) (Token blacklisting/whitelisting)
+*   [Implementing Refresh Tokens - Medium](https://medium.com/@sherry_j_c_wang/implementing-refresh-tokens-jwt-in-node-js-6d9b4b0e8b2b) (Implementation details for Node.js)
+*   [HttpOnly Cookies and JWT - Snyk](https://snyk.io/blog/jwt-authentication-best-practices/) (Secure cookie usage for refresh tokens)
+*   [JWT and SQLite Best Practices - Stack Overflow](https://stackoverflow.com/questions/59695484/best-practice-for-storing-jwt-refresh-tokens-in-sqlite) (SQLite schema for refresh tokens)
+*   [JWT security best practices for 2024 - Serverion](https://serverion.com/jwt-security-best-practices/) (General security practices)
+*   [JWT authentication using Node.js - GeeksforGeeks](https://www.geeksforgeeks.org/jwt-authentication-using-node-js/) (Basic Node.js JWT setup)
+*   [Best Practices for Secure JWT Authentication - Auth0](https://auth0.com/blog/brute-forcing-tokens-what-you-need-to-know/) (Comprehensive JWT security)
