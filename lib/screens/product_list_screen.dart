@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import 'package:lung_chaing_farm/providers/auth_provider.dart';
 import 'package:lung_chaing_farm/services/api_service.dart';
 import 'package:lung_chaing_farm/widgets/product_card.dart';
-import 'package:lung_chaing_farm/screens/add_product_screen.dart';
 import 'package:lung_chaing_farm/screens/auth/login_screen.dart';
 import 'package:lung_chaing_farm/screens/auth/register_screen.dart';
 import 'package:lung_chaing_farm/services/audio_service.dart';
@@ -40,17 +39,6 @@ class _ProductListScreenState extends State<ProductListScreen> {
         }
       })();
     });
-  }
-
-  void _navigateToAddNewProduct() async {
-    AudioService.playClickSound(); // Play sound on add button click
-    final result = await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const AddProductScreen()),
-    );
-    if (result == true) {
-      _fetchProducts(); // Refresh products if a new one was added
-    }
   }
 
   void _sellProduct(int productId, double currentStock) async {
@@ -103,7 +91,6 @@ class _ProductListScreenState extends State<ProductListScreen> {
                   icon: const Icon(Icons.logout),
                   tooltip: 'Logout',
                   onPressed: () {
-                    AudioService.playClickSound();
                     Provider.of<AuthProvider>(context, listen: false).logout();
                   },
                 );
@@ -114,7 +101,6 @@ class _ProductListScreenState extends State<ProductListScreen> {
                       icon: const Icon(Icons.person_add),
                       tooltip: 'Register',
                       onPressed: () {
-                        AudioService.playClickSound();
                         Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -127,7 +113,6 @@ class _ProductListScreenState extends State<ProductListScreen> {
                       icon: const Icon(Icons.login),
                       tooltip: 'Login',
                       onPressed: () {
-                        AudioService.playClickSound();
                         Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -180,11 +165,6 @@ class _ProductListScreenState extends State<ProductListScreen> {
             );
           }
         },
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _navigateToAddNewProduct,
-        backgroundColor: Colors.lightGreen,
-        child: const Icon(Icons.add),
       ),
     );
   }

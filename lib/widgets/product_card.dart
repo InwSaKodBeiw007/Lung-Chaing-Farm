@@ -1,6 +1,5 @@
 // lib/widgets/product_card.dart
 import 'package:flutter/material.dart';
-import 'package:lung_chaing_farm/services/audio_service.dart'; // Import AudioService
 import 'package:lung_chaing_farm/screens/auth/register_screen.dart'; // Import RegisterScreen
 import 'package:lung_chaing_farm/widgets/shared/image_gallery_swiper.dart'; // Import ImageGallerySwiper
 import 'package:intl/intl.dart'; // For date formatting
@@ -48,7 +47,6 @@ class ProductCard extends StatelessWidget {
       margin: const EdgeInsets.all(8.0),
       child: InkWell(
         onTap: () {
-          AudioService.playClickSound();
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -107,7 +105,6 @@ class ProductCard extends StatelessWidget {
                     ElevatedButton(
                       onPressed: stock > 0
                           ? () {
-                              AudioService.playClickSound(); // Play sound on sell/buy
                               if (isVisitor) {
                                 Navigator.push(
                                   context,
@@ -131,7 +128,6 @@ class ProductCard extends StatelessWidget {
                     IconButton(
                       icon: const Icon(Icons.edit, color: Colors.blue),
                       onPressed: () {
-                        AudioService.playClickSound(); // Play sound on edit
                         onEdit!();
                       },
                     ),
@@ -139,7 +135,6 @@ class ProductCard extends StatelessWidget {
                     IconButton(
                       icon: const Icon(Icons.delete, color: Colors.red),
                       onPressed: () {
-                        AudioService.playClickSound(); // Play sound on delete
                         onDelete(id);
                       },
                     ),

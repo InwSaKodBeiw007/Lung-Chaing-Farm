@@ -13,7 +13,10 @@ This is the frontend Flutter application for the Lung Chaing Farm marketplace. I
     *   Villagers can add and edit products with multiple images, categories ("Sweet", "Sour"), and custom low stock thresholds.
     *   Product cards display `farm_name` and images in a swipeable gallery.
 *   **In-App Notifications:** Transient `SnackBar` messages for user feedback (success/error) and low stock alerts.
-*   **Low Stock Overview (for Villagers):** A dedicated section in the villager dashboard showing all products below their low stock threshold.
+*   **Low Stock Overview (for Villagers):** A dedicated section in the villager dashboard showing all products below their low stock threshold, now accessible via an AppBar icon.
+*   **Low Stock Products View:** A dedicated screen for Villagers to view all low-stock products, including their `low_stock_since_date`.
+*   **Product Detail Screen:** A comprehensive screen accessible by tapping any product card, displaying full product information and its transaction history.
+*   **Expandable Transaction History:** On the Product Detail Screen and within the Low Stock Products View, individual product entries now feature an expandable section to reveal sales transaction history.
 
 ## Getting Started
 

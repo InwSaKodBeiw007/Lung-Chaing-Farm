@@ -27,13 +27,15 @@ class _VillagerDashboardScreenState extends State<VillagerDashboardScreen> {
   @override
   void initState() {
     super.initState();
+    _villagerProductsFuture = Future.value(
+      <Map<String, dynamic>>[],
+    ); // Initialize here
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _fetchVillagerProducts();
     });
   }
 
   void _fetchVillagerProducts() {
-    AudioService.playClickSound(); // Play sound on refresh
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final lowStockProvider = Provider.of<LowStockProvider>(
       context,
@@ -51,9 +53,9 @@ class _VillagerDashboardScreenState extends State<VillagerDashboardScreen> {
                 )
                 .toList();
 
-            // After fetching owned products, also fetch low stock products for the provider
-            if (authProvider.user?.token != null) {
-              lowStockProvider.fetchLowStockProducts(authProvider.user!.token);
+            final String? userToken = authProvider.token;
+            if (userToken != null) {
+              lowStockProvider.fetchLowStockProducts(userToken);
             } else {
               NotificationService.showSnackBar(
                 'Authentication token is missing. Please log in again.',
@@ -83,7 +85,6 @@ class _VillagerDashboardScreenState extends State<VillagerDashboardScreen> {
   }
 
   void _navigateToAddNewProduct() async {
-    AudioService.playClickSound(); // Play sound on add button click
     final result = await Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const AddProductScreen()),
@@ -94,7 +95,6 @@ class _VillagerDashboardScreenState extends State<VillagerDashboardScreen> {
   }
 
   void _editProduct(int productId) {
-    AudioService.playClickSound();
     // TODO: Implement navigation to an EditProductScreen
     NotificationService.showSnackBar(
       'Edit product functionality not yet implemented.',
@@ -163,14 +163,8 @@ class _VillagerDashboardScreenState extends State<VillagerDashboardScreen> {
           // Low Stock Indicator
           Consumer<LowStockProvider>(
             builder: (context, lowStockProvider, child) {
-              // Ensure lowStockProvider fetches data when the app starts or a user logs in
-              if (lowStockProvider.isLoading == false &&
-                  authProvider.isAuthenticated &&
-                  lowStockProvider.lowStockCount == 0) {
-                lowStockProvider.fetchLowStockProducts(
-                  authProvider.user!.token,
-                );
-              }
+              // The low stock products are fetched via _fetchVillagerProducts in initState.
+              // This Consumer will simply listen and rebuild when lowStockProvider notifies.
               return badges.Badge(
                 showBadge: lowStockProvider.lowStockCount > 0,
                 badgeContent: Text(
@@ -186,10 +180,9 @@ class _VillagerDashboardScreenState extends State<VillagerDashboardScreen> {
                     'assets/icons/shop-cart.png',
                     width: 24,
                     height: 24,
-                    color: Colors.white,
+                    // color: Colors.white,
                   ), // Use Image.asset for the custom icon
                   onPressed: () {
-                    AudioService.playClickSound();
                     Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -203,13 +196,15 @@ class _VillagerDashboardScreenState extends State<VillagerDashboardScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: _fetchVillagerProducts,
+            onPressed: () {
+              AudioService.playClickSound();
+              _fetchVillagerProducts();
+            },
           ),
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Logout',
             onPressed: () {
-              AudioService.playClickSound();
               Provider.of<AuthProvider>(context, listen: false).logout();
               Provider.of<LowStockProvider>(
                 context,

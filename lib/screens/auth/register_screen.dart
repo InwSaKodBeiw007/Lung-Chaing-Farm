@@ -73,7 +73,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
-            AudioService.playClickSound(); // Play sound
             Navigator.pop(context); // Then pop
           },
         ),

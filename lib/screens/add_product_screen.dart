@@ -5,7 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:lung_chaing_farm/services/api_service.dart';
-import 'package:lung_chaing_farm/services/audio_service.dart'; // Import AudioService
+// import 'package:lung_chaing_farm/services/audio_service.dart'; // Import AudioService
 import 'package:lung_chaing_farm/services/notification_service.dart'; // Import NotificationService
 
 class AddProductScreen extends StatefulWidget {
@@ -30,7 +30,6 @@ class _AddProductScreenState extends State<AddProductScreen> {
   bool _isLoading = false;
 
   Future<void> _pickNewImage() async {
-    AudioService.playClickSound();
     final ImagePicker picker = ImagePicker();
     final List<XFile> images = await picker.pickMultiImage();
     if (images.isNotEmpty) {
@@ -59,7 +58,6 @@ class _AddProductScreenState extends State<AddProductScreen> {
   }
 
   Future<void> _submitForm() async {
-    AudioService.playClickSound(); // Play sound immediately on button press
     if (!_formKey.currentState!.validate()) {
       return;
     }
@@ -125,8 +123,6 @@ class _AddProductScreenState extends State<AddProductScreen> {
           icon: const Icon(Icons.arrow_back),
 
           onPressed: () {
-            AudioService.playClickSound(); // Play sound
-
             Navigator.pop(context); // Then pop
           },
         ),

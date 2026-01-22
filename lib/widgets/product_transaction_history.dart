@@ -24,7 +24,7 @@ class _ProductTransactionHistoryState extends State<ProductTransactionHistory> {
 
   void _fetchTransactions() {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    if (authProvider.isAuthenticated && authProvider.user?.token != null) {
+    if (authProvider.isAuthenticated && authProvider.token != null) {
       _transactionsFuture = ApiService.instance.getProductTransactions(
         widget.productId,
         days: 30, // Default to last 30 days, can be made configurable

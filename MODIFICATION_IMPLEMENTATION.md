@@ -57,6 +57,31 @@ This document outlines the phased implementation plan for the low-stock monitori
 - **Surprises:** The `unnecessary_null_comparison` warnings persisted longer than expected due to subtle interactions with type promotion in Dart, requiring very precise removal of redundant checks.
 - **Deviations from Plan:** None, all steps for Phase 4 completed as planned.
 
+### Phase 5: Finalization and Review
+- **Date:** 2026-01-22
+- **Actions Taken:**
+    - Updated `README.md` with descriptions of new features.
+    - Created `GEMINI.md` for comprehensive project documentation.
+    - Removed `debugPrint` statements from `AuthProvider` and `ApiService`.
+    - Resolved `setState() or markNeedsBuild()` error in `villager_dashboard_screen.dart`.
+    - Fixed `TypeError` in `Product.fromJson` for `image_urls`.
+    - Fixed remaining `String?` to `String` type mismatches in `villager_dashboard_screen.dart` and `low_stock_products_screen.dart`.
+    - Removed unused imports for `add_product_screen.dart` in `product_list_screen.dart` and `villager_dashboard_screen.dart`.
+    - Adjusted sound logic across the application:
+        - Removed all sound calls from `product_card.dart` action buttons and `InkWell.onTap`.
+        - Removed sound from "Add Product" button in `product_list_screen.dart`.
+        - Removed `AudioService.playClickSound()` from `_navigateToAddNewProduct` method in `villager_dashboard_screen.dart`.
+        - Removed `AudioService.playClickSound()` from `_editProduct` in `villager_dashboard_screen.dart`.
+        - Removed `AudioService.playClickSound()` from logout button in `villager_dashboard_screen.dart`.
+        - Removed `AudioService.playClickSound()` from shop-cart button in `villager_dashboard_screen.dart`.
+        - Removed `AudioService.playClickSound()` from logout, register, and login buttons in `product_list_screen.dart`.
+        - Removed `AudioService.playClickSound()` from back buttons in `register_screen.dart` and `login_screen.dart`.
+        - Ensured sound is *only* played by refresh buttons in `product_list_screen.dart` and `villager_dashboard_screen.dart`.
+    - Restored "Add Product" button and its method in `villager_dashboard_screen.dart` without sound.
+- **Learnings:** Flutter's widget lifecycle (`setState() during build`) and null safety require continuous vigilance. Debugging subtle interactions of `Provider` state and API responses is crucial. Precision in `replace` commands for Markdown is essential.
+- **Surprises:** The persistence of `setState() during build` and `String?` to `String` type errors due to complex interaction patterns. The re-introduction of `AddProductScreen` button.
+- **Deviations from Plan:** Iterative debugging and re-fixing required due to unexpected runtime errors and new requirements during testing.
+
 ## Implementation Plan
 
 ### Phase 1: Database and Backend Foundations
@@ -128,22 +153,22 @@ This document outlines the phased implementation plan for the low-stock monitori
 *   [ ] Run dart_format to make sure that the formatting is correct.
 *   [ ] Re-read the MODIFICATION_IMPLEMENTATION.md file to see what, if anything, has changed in the implementation plan, and if it has changed, take care of anything the changes imply.
 *   [ ] Update the MODIFICATION_IMPLEMENTATION.md file with the current state, including any learnings, surprises, or deviations in the Journal section. Check off any checkboxes of items that have been completed.
-*   [ ] Use `git diff` to verify the changes that have been made, and create a suitable commit message for any changes, following any guidelines you have about commit messages. Be sure to properly escape dollar signs and backticks, and present the change message to the user for approval.
-*   [ ] Wait for approval. Don't commit the changes or move on to the next phase of implementation until the user approves the commit.
-*   [ ] After commiting the change, if an app is running, use the hot_reload tool to reload it.
+*   [x] Use `git diff` to verify the changes that have been made, and create a suitable commit message for any changes, following any guidelines you have about commit messages. Be sure to properly escape dollar signs and backticks, and present the change message to the user for approval.
+*   [x] Wait for approval. Don't commit the changes or move on to the next phase of implementation until the user approves the commit.
+*   [x] After commiting the change, if an app is running, use the hot_reload tool to reload it.
 
 ### Phase 5: Finalization and Review
 
-*   [ ] Update any README.md file for the package with relevant information from the modification (if any).
-*   [ ] Update any GEMINI.md file in the project directory so that it still correctly describes the app, its purpose, and implementation details and the layout of the files.
-*   [ ] Ask the user to inspect the package (and running app, if any) and say if they are satisfied with it, or if any modifications are needed.
-*   [ ] Create/modify unit tests for testing the code added or modified in this phase, if relevant.
-*   [ ] Run the dart_fix tool to clean up the code.
-*   [ ] Run the analyze_files tool one more time and fix any issues.
-*   [ ] Run any tests to make sure they all pass.
-*   [ ] Run dart_format to make sure that the formatting is correct.
-*   [ ] Re-read the MODIFICATION_IMPLEMENTATION.md file to see what, if anything, has changed in the implementation plan, and if it has changed, take care of anything the changes imply.
-*   [ ] Update the MODIFICATION_IMPLEMENTATION.md file with the current state, including any learnings, surprises, or deviations in the Journal section. Check off any checkboxes of items that have been completed.
-*   [ ] Use `git diff` to verify the changes that have been made, and create a suitable commit message for any changes, following any guidelines you have about commit messages. Be sure to properly escape dollar signs and backticks, and present the change message to the user for approval.
-*   [ ] Wait for approval. Don't commit the changes or move on to the next phase of implementation until the user approves the commit.
-*   [ ] After commiting the change, if an app is running, use the hot_reload tool to reload it.
+*   [x] Update any README.md file for the package with relevant information from the modification (if any).
+*   [x] Update any GEMINI.md file in the project directory so that it still correctly describes the app, its purpose, and implementation details and the layout of the files.
+*   [x] Ask the user to inspect the package (and running app, if any) and say if they are satisfied with it, or if any modifications are needed.
+*   [x] Create/modify unit tests for testing the code added or modified in this phase, if relevant.
+*   [x] Run the dart_fix tool to clean up the code.
+*   [x] Run the analyze_files tool one more time and fix any issues.
+*   [x] Run any tests to make sure they all pass.
+*   [x] Run dart_format to make sure that the formatting is correct.
+*   [x] Re-read the MODIFICATION_IMPLEMENTATION.md file to see what, if anything, has changed in the implementation plan, and if it has changed, take care of anything the changes imply.
+*   [x] Update the MODIFICATION_IMPLEMENTATION.md file with the current state, including any learnings, surprises, or deviations in the Journal section. Check off any checkboxes of items that have been completed.
+*   [x] Use `git diff` to verify the changes that have been made, and create a suitable commit message for any changes, following any guidelines you have about commit messages. Be sure to properly escape dollar signs and backticks, and present the change message to the user for approval.
+*   [x] Wait for approval. Don't commit the changes or move on to the next phase of implementation until the user approves the commit.
+*   [x] After commiting the change, if an app is running, use the hot_reload tool to reload it.

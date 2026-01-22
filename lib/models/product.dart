@@ -54,10 +54,10 @@ class Product {
     // The images will need to be constructed from the joined table
     // This is a placeholder for now and will be updated when the API service is updated
     final List<String> images =
-        (json['image_urls'] as String?)
-            ?.split(',')
-            .where((s) => s.isNotEmpty) // Filter out empty strings
-            .map((image) {
+        (json['image_urls'] as List<dynamic>?) // Expect List<dynamic> directly
+            ?.map((dynamic image) => image.toString()) // Convert each to string
+            .map((String image) {
+              // Map to full URL
               final String fullImageUrl = image.startsWith('uploads/')
                   ? 'http://10.0.2.2:3000/$image' // For Android emulator
                   : 'http://localhost:3000/$image'; // For web

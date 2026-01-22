@@ -39,7 +39,7 @@ class ApiService {
   // Use 'http://10.0.2.2:3000' for Android emulator
   // Use 'http://localhost:3000' for web
   static const String baseUrl =
-      'http://localhost:3000'; // Corrected for web development
+      'http://10.0.2.2:3000'; // Corrected for web development
 
   // --- Header Management ---
   void setAuthToken(String? token) {
@@ -59,10 +59,11 @@ class ApiService {
 
   // --- Auth Methods ---
   Future<Map<String, dynamic>> login(String email, String password) async {
+    final requestBody = json.encode({'email': email, 'password': password});
     final response = await _httpClient.post(
       Uri.parse('$baseUrl/auth/login'),
       headers: _getHeaders(),
-      body: json.encode({'email': email, 'password': password}),
+      body: requestBody,
     );
     if (response.statusCode == 200) {
       return json.decode(response.body);

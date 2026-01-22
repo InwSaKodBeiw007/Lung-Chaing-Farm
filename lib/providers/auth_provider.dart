@@ -77,6 +77,8 @@ class AuthProvider with ChangeNotifier {
         address: address,
         contactInfo: contactInfo,
       );
+      // Automatically log in the user after successful registration
+      await login(email, password);
     } on ApiException catch (e) {
       if (e.statusCode == 401 || e.statusCode == 403) {
         throw Exception('Permission denied or invalid credentials.');

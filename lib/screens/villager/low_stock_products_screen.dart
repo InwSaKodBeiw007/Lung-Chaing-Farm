@@ -23,18 +23,17 @@ class _LowStockProductsScreenState extends State<LowStockProductsScreen> {
   }
 
   void _fetchLowStockProducts() {
-    AudioService.playClickSound();
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final lowStockProvider = Provider.of<LowStockProvider>(
       context,
       listen: false,
     );
 
+    final String? userToken = authProvider.token;
     if (authProvider.isAuthenticated &&
         authProvider.user?.role == 'VILLAGER' &&
-        authProvider.user != null &&
-        authProvider.user?.token != null) {
-      lowStockProvider.fetchLowStockProducts(authProvider.user!.token);
+        userToken != null) {
+      lowStockProvider.fetchLowStockProducts(userToken);
     } else {
       lowStockProvider.clearLowStockData();
       NotificationService.showSnackBar(
@@ -53,7 +52,10 @@ class _LowStockProductsScreenState extends State<LowStockProductsScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: _fetchLowStockProducts,
+            onPressed: () => {
+              AudioService.playClickSound(),
+              _fetchLowStockProducts,
+            },
           ),
         ],
       ),

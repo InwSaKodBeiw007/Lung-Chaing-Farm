@@ -2,7 +2,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:lung_chaing_farm/providers/auth_provider.dart';
-import 'package:lung_chaing_farm/services/audio_service.dart'; // Import AudioService
 import 'package:lung_chaing_farm/services/notification_service.dart'; // Import NotificationService
 
 class LoginScreen extends StatefulWidget {
@@ -22,7 +21,6 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!_formKey.currentState!.validate()) {
       return;
     }
-    AudioService.playClickSound(); // Play sound on submit
     setState(() {
       _isLoading = true;
     });
@@ -58,7 +56,6 @@ class _LoginScreenState extends State<LoginScreen> {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
-            AudioService.playClickSound(); // Play sound
             Navigator.pop(context); // Then pop
           },
         ),
