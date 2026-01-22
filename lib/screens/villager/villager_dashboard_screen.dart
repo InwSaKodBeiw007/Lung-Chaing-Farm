@@ -10,6 +10,7 @@ import 'package:lung_chaing_farm/screens/add_product_screen.dart';
 import 'package:lung_chaing_farm/screens/villager/low_stock_products_screen.dart'; // Import LowStockProductsScreen
 import 'package:lung_chaing_farm/services/audio_service.dart';
 import 'package:lung_chaing_farm/services/notification_service.dart'; // Import NotificationService
+import 'package:lung_chaing_farm/models/product.dart'; // Import Product model
 
 class VillagerDashboardScreen extends StatefulWidget {
   const VillagerDashboardScreen({super.key});
@@ -41,18 +42,36 @@ class _VillagerDashboardScreenState extends State<VillagerDashboardScreen> {
 
     if (authProvider.isAuthenticated && authProvider.user?.role == 'VILLAGER') {
       setState(() {
-        _villagerProductsFuture = ApiService.instance.getProducts().then((
-          allProducts,
-        ) {
-          final ownedProducts = allProducts
-              .where((product) => product['owner_id'] == authProvider.user!.id)
-              .toList();
+        _villagerProductsFuture = (() async {
+          try {
+            final allProducts = await ApiService.instance.getProducts();
+            final ownedProducts = allProducts
+                .where(
+                  (product) => product['owner_id'] == authProvider.user!.id,
+                )
+                .toList();
 
-          // After fetching owned products, also fetch low stock products for the provider
-          lowStockProvider.fetchLowStockProducts(authProvider.user!.token); // Fetch for the provider
-
-          return ownedProducts;
-        });
+            // After fetching owned products, also fetch low stock products for the provider
+            if (authProvider.user?.token != null) {
+              lowStockProvider.fetchLowStockProducts(authProvider.user!.token);
+            } else {
+              NotificationService.showSnackBar(
+                'Authentication token is missing. Please log in again.',
+                isError: true,
+              );
+              lowStockProvider.clearLowStockData();
+              return <Map<String, dynamic>>[];
+            }
+            return ownedProducts;
+          } catch (e) {
+            NotificationService.showSnackBar(
+              'Failed to load products: ${e.toString()}',
+              isError: true,
+            );
+            lowStockProvider.clearLowStockData();
+            return <Map<String, dynamic>>[];
+          }
+        })();
       });
     } else {
       // If not authenticated or not a villager, clear products
@@ -146,9 +165,11 @@ class _VillagerDashboardScreenState extends State<VillagerDashboardScreen> {
             builder: (context, lowStockProvider, child) {
               // Ensure lowStockProvider fetches data when the app starts or a user logs in
               if (lowStockProvider.isLoading == false &&
-                  lowStockProvider.lowStockCount == 0 &&
-                  authProvider.isAuthenticated) {
-                lowStockProvider.fetchLowStockProducts();
+                  authProvider.isAuthenticated &&
+                  lowStockProvider.lowStockCount == 0) {
+                lowStockProvider.fetchLowStockProducts(
+                  authProvider.user!.token,
+                );
               }
               return badges.Badge(
                 showBadge: lowStockProvider.lowStockCount > 0,
@@ -267,13 +288,14 @@ class _VillagerDashboardScreenState extends State<VillagerDashboardScreen> {
                             ),
                         itemCount: snapshot.data!.length,
                         itemBuilder: (context, index) {
-                          final product = snapshot.data![index];
+                          final productData = snapshot.data![index];
+                          final product = Product.fromJson(productData);
                           return ProductCard(
                             product: product,
                             onSell: _sellProduct,
                             onDelete: _deleteProduct,
                             userRole: currentUserRole,
-                            onEdit: () => _editProduct(product['id']),
+                            onEdit: () => _editProduct(product.id),
                           );
                         },
                       ),

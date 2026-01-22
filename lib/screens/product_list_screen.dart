@@ -8,6 +8,7 @@ import 'package:lung_chaing_farm/screens/auth/login_screen.dart';
 import 'package:lung_chaing_farm/screens/auth/register_screen.dart';
 import 'package:lung_chaing_farm/services/audio_service.dart';
 import 'package:lung_chaing_farm/services/notification_service.dart'; // Import NotificationService
+import 'package:lung_chaing_farm/models/product.dart'; // Import Product model
 
 class ProductListScreen extends StatefulWidget {
   const ProductListScreen({super.key});
@@ -25,9 +26,19 @@ class _ProductListScreenState extends State<ProductListScreen> {
     _fetchProducts();
   }
 
-  void _fetchProducts() {
+  void _fetchProducts() async {
     setState(() {
-      _productsFuture = ApiService.instance.getProducts();
+      _productsFuture = (() async {
+        try {
+          return await ApiService.instance.getProducts();
+        } catch (e) {
+          NotificationService.showSnackBar(
+            'Failed to load products: ${e.toString()}',
+            isError: true,
+          );
+          return <Map<String, dynamic>>[];
+        }
+      })();
     });
   }
 
@@ -157,7 +168,8 @@ class _ProductListScreenState extends State<ProductListScreen> {
               ),
               itemCount: snapshot.data!.length,
               itemBuilder: (context, index) {
-                final product = snapshot.data![index];
+                final productData = snapshot.data![index];
+                final product = Product.fromJson(productData);
                 return ProductCard(
                   product: product,
                   onSell: _sellProduct,

@@ -6,6 +6,7 @@ import 'package:lung_chaing_farm/screens/product_list_screen.dart';
 import 'package:lung_chaing_farm/screens/villager/villager_dashboard_screen.dart';
 import 'package:lung_chaing_farm/screens/user/user_home_screen.dart';
 import 'package:lung_chaing_farm/services/notification_service.dart'; // Import NotificationService
+import 'package:lung_chaing_farm/services/api_service.dart'; // Import ApiService
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -20,7 +21,9 @@ class MyApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (context) => AuthProvider()),
-        ChangeNotifierProvider(create: (context) => LowStockProvider()),
+        ChangeNotifierProvider(
+          create: (context) => LowStockProvider(ApiService.instance),
+        ),
       ],
       child: MaterialApp(
         title: 'Lung Chaing Farm',

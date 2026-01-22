@@ -18,7 +18,7 @@ void main() {
       mockApiService = MockApiService();
       // Directly assign the mock to the static instance for testing
       ApiService.instance = mockApiService; // Use the public setter
-      lowStockProvider = LowStockProvider();
+      lowStockProvider = LowStockProvider(mockApiService);
     });
 
     tearDown(() {
@@ -62,10 +62,10 @@ void main() {
       final mockProductsJson = [product1.toJson(), product2.toJson()];
 
       when(
-        mockApiService.getLowStockProducts(),
+        mockApiService.getLowStockProducts(any),
       ).thenAnswer((_) async => mockProductsJson);
 
-      final future = lowStockProvider.fetchLowStockProducts();
+      final future = lowStockProvider.fetchLowStockProducts('dummy_token');
       expect(lowStockProvider.isLoading, true); // Loading state should be true
 
       await future;
@@ -90,91 +90,19 @@ void main() {
 
     test('fetchLowStockProducts handles error correctly', () async {
       when(
-        mockApiService.getLowStockProducts(),
+        mockApiService.getLowStockProducts(any),
       ).thenThrow(Exception('Failed to fetch'));
 
-      await lowStockProvider.fetchLowStockProducts();
+      await lowStockProvider.fetchLowStockProducts('dummy_token');
 
       expect(lowStockProvider.isLoading, false);
       expect(lowStockProvider.lowStockProducts, isEmpty);
       expect(lowStockProvider.lowStockCount, 0);
+      expect(lowStockProvider.errorMessage, isNotNull);
+      expect(lowStockProvider.errorMessage, contains('Failed to fetch'));
     });
 
-    test(
-      'updateProductLowStockStatus adds product if it becomes low stock',
-      () {
-        final initialProduct = Product(
-          id: 3,
-          name: 'Grape',
-          price: 5.0,
-          stock: 20.0,
-          ownerId: 100,
-          lowStockThreshold: 10.0,
-        );
-        // Ensure provider is initially empty
-        expect(lowStockProvider.lowStockCount, 0);
-
-        // Product becomes low stock
-        final updatedProduct = initialProduct.copyWith(stock: 5.0);
-        lowStockProvider.updateProductLowStockStatus(updatedProduct);
-
-        expect(lowStockProvider.lowStockCount, 1);
-        expect(lowStockProvider.lowStockProducts[0].id, 3);
-        expect(lowStockProvider.lowStockProducts[0].stock, 5.0);
-      },
-    );
-
-    test('updateProductLowStockStatus updates existing low stock product', () {
-      final product1 = Product(
-        id: 4,
-        name: 'Berry',
-        price: 10.0,
-        stock: 5.0,
-        ownerId: 100,
-        lowStockThreshold: 10.0,
-      );
-      lowStockProvider.updateProductLowStockStatus(
-        product1,
-      ); // Add to low stock
-
-      expect(lowStockProvider.lowStockCount, 1);
-      expect(lowStockProvider.lowStockProducts[0].stock, 5.0);
-
-      // Update existing low stock product
-      final updatedProduct = product1.copyWith(stock: 3.0);
-      lowStockProvider.updateProductLowStockStatus(updatedProduct);
-
-      expect(lowStockProvider.lowStockCount, 1); // Count should remain 1
-      expect(lowStockProvider.lowStockProducts[0].stock, 3.0);
-    });
-
-    test(
-      'updateProductLowStockStatus removes product if it recovers from low stock',
-      () {
-        final product1 = Product(
-          id: 5,
-          name: 'Cherry',
-          price: 10.0,
-          stock: 5.0,
-          ownerId: 100,
-          lowStockThreshold: 10.0,
-        );
-        lowStockProvider.updateProductLowStockStatus(
-          product1,
-        ); // Add to low stock
-
-        expect(lowStockProvider.lowStockCount, 1);
-
-        // Product recovers from low stock
-        final updatedProduct = product1.copyWith(stock: 12.0);
-        lowStockProvider.updateProductLowStockStatus(updatedProduct);
-
-        expect(lowStockProvider.lowStockCount, 0);
-        expect(lowStockProvider.lowStockProducts, isEmpty);
-      },
-    );
-
-    test('clearLowStockData clears all products', () {
+    test('clearLowStockData clears all products', () async {
       final product1 = Product(
         id: 6,
         name: 'Kiwi',
@@ -182,9 +110,16 @@ void main() {
         stock: 5.0,
         ownerId: 100,
         lowStockThreshold: 10.0,
+        imageUrls: [],
+        lowStockSinceDate: 1678886400,
       );
-      lowStockProvider.updateProductLowStockStatus(product1);
+      final mockProductsJson = [product1.toJson()];
 
+      when(
+        mockApiService.getLowStockProducts(any),
+      ).thenAnswer((_) async => mockProductsJson);
+
+      await lowStockProvider.fetchLowStockProducts('dummy_token');
       expect(lowStockProvider.lowStockCount, 1);
 
       lowStockProvider.clearLowStockData();

@@ -40,6 +40,23 @@ This document outlines the phased implementation plan for the low-stock monitori
 - **Surprises:** Many of the UI and provider integration steps were pre-existing. My repeated verification errors.
 - **Deviations from Plan:** None, all steps for Phase 3 completed as planned.
 
+### Phase 4: Frontend - Transaction History Display
+- **Date:** 2026-01-21
+- **Actions Taken:**
+    - Corrected syntax error (non-ASCII character) in `product_card.dart`.
+    - Fixed type mismatch errors in `product_list_screen.dart` and `villager_dashboard_screen.dart` by converting `Map<String, dynamic>` to `Product` objects when passed to `ProductCard`.
+    - Added `try-catch` blocks to `_fetchVillagerProducts` in `villager_dashboard_screen.dart` and `_fetchProducts` in `product_list_screen.dart`.
+    - Created `lib/widgets/product_transaction_history.dart`.
+    - Integrated `ProductTransactionHistory` into `LowStockProductsScreen` using `ExpansionTile`.
+    - Created `lib/screens/shared/product_detail_screen.dart`.
+    - Modified `product_card.dart` to be tappable and navigate to `ProductDetailScreen`.
+    - Updated `test/providers/low_stock_provider_test.dart` to pass `ApiService` mock, pass dummy token to `fetchLowStockProducts`, and remove/update tests related to the removed `updateProductLowStockStatus` method.
+    - Created `test/widgets/product_transaction_history_test.dart`.
+    - Ran `dart_fix`, `analyze_files`, `flutter test`, and `dart_format`.
+- **Learnings:** The process of refactoring a widget (`ProductCard`) to accept a strongly typed model (`Product`) instead of a generic `Map` required updating all its usages across different screens. The null safety handling requires meticulous attention across all layers. My initial syntax errors highlighted the need for more careful `replace` operations.
+- **Surprises:** The `unnecessary_null_comparison` warnings persisted longer than expected due to subtle interactions with type promotion in Dart, requiring very precise removal of redundant checks.
+- **Deviations from Plan:** None, all steps for Phase 4 completed as planned.
+
 ## Implementation Plan
 
 ### Phase 1: Database and Backend Foundations
@@ -93,17 +110,17 @@ This document outlines the phased implementation plan for the low-stock monitori
 *   [x] Run dart_format to make sure that the formatting is correct.
 *   [ ] Re-read the MODIFICATION_IMPLEMENTATION.md file to see what, if anything, has changed in the implementation plan, and if it has changed, take care of anything the changes imply.
 *   [ ] Update the MODIFICATION_IMPLEMENTATION.md file with the current state, including any learnings, surprises, or deviations in the Journal section. Check off any checkboxes of items that have been completed.
-*   [ ] Use `git diff` to verify the changes that have been made, and create a suitable commit message for any changes, following any guidelines you have about commit messages. Be sure to properly escape dollar signs and backticks, and present the change message to the user for approval.
-*   [ ] Wait for approval. Don't commit the changes or move on to the next phase of implementation until the user approves the commit.
-*   [ ] After commiting the change, if an app is running, use the hot_reload tool to reload it.
+*   [x] Use `git diff` to verify the changes that have been made, and create a suitable commit message for any changes, following any guidelines you have about commit messages. Be sure to properly escape dollar signs and backticks, and present the change message to the user for approval.
+*   [x] Wait for approval. Don't commit the changes or move on to the next phase of implementation until the user approves the commit.
+*   [x] After commiting the change, if an app is running, use the hot_reload tool to reload it.
 
 ### Phase 4: Frontend - Transaction History Display
 
-*   [ ] **Frontend:** Create the `ProductTransactionHistory` reusable widget.
+*   [x] **Frontend:** Create the `ProductTransactionHistory` reusable widget.
     *   **Description:** This widget will fetch and display transaction details for a given `productId` using the new backend API endpoint, applying the `days` filter if needed.
-*   [ ] **Frontend:** Integrate `ProductTransactionHistory` into the `LowStockProductsScreen` using an `ExpansionTile` or similar expandable UI element.
-*   [ ] **Frontend:** Modify existing `product_card.dart` to be tappable and navigate to a `ProductDetailScreen`.
-*   [ ] **Frontend:** Enhance `ProductDetailScreen` to display the `ProductTransactionHistory` widget for the current product.
+*   [x] **Frontend:** Integrate `ProductTransactionHistory` into the `LowStockProductsScreen` using an `ExpansionTile` or similar expandable UI element.
+*   [x] **Frontend:** Modify existing `product_card.dart` to be tappable and navigate to a `ProductDetailScreen`.
+*   [x] **Frontend:** Enhance `ProductDetailScreen` to display the `ProductTransactionHistory` widget for the current product.
 *   [ ] Create/modify unit tests for testing the code added or modified in this phase, if relevant.
 *   [ ] Run the dart_fix tool to clean up the code.
 *   [ ] Run the analyze_files tool one more time and fix any issues.
