@@ -1,126 +1,174 @@
-# Lung Chaing Farm - Project Overview
+# Lung Chaing Farm: Project Overview by Gemini
 
-This document provides a comprehensive overview of the "Lung Chaing Farm" application, a full-stack marketplace designed for villagers to sell their farm produce.
+This document provides a comprehensive overview of the "Lung Chaing Farm" application, detailing its purpose, architecture, implementation specifics, and file organization.
 
-The application has evolved into a multi-user platform with distinct roles, secure authentication, advanced product management, and now includes robust low-stock monitoring and sales transaction history features. It features a Flutter-based frontend and a Node.js backend with an SQLite database.
+## 1. Project Purpose
 
-## Architecture
+The "Lung Chaing Farm" is a Flutter-based marketplace application designed to connect villagers (sellers) with users (buyers). It provides a platform for villagers to sell their farm produce and offers distinct user experiences based on roles: Visitors, Users (Buyers), and Villagers (Sellers).
 
-The application follows a client-server architecture with a clear separation of concerns.
-
-### Frontend (Flutter)
-
-*   **Platform:** Developed using Flutter, enabling deployment to web, Android, and other platforms.
-*   **State Management:** Utilizes the `provider` package for robust and scalable state management, primarily for handling global authentication state (`AuthProvider`) and low-stock product state (`LowStockProvider`).
-*   **Structure:** Organized into a modular, feature-based structure with distinct directories for models, providers, services, screens for each user role (Visitor, User, Villager), and shared widgets.
-*   **Key Packages:**
-    *   `http`: For all API communication with the backend.
-    *   `provider`: For state management.
-    *   `shared_preferences`: For persisting the user's authentication token locally.
-    *   `audioplayers`: For UI sound effects.
-    *   `badges`: For displaying numerical badges (e.g., low stock count).
-    *   `intl`: For internationalization and date formatting.
-
-### Backend (Node.js with Express)
-
-*   **Framework:** An API server built with Node.js and the Express framework.
-*   **Authentication:** Implements a secure, token-based authentication system using **JSON Web Tokens (JWT)**. Passwords are never stored directly; instead, they are hashed using the **`bcryptjs`** library.
-*   **Authorization:** API endpoints are protected using custom middleware that verifies JWTs and checks user roles and ownership, ensuring users can only access or modify data they are permitted to.
-*   **Database:** Manages all application data using a local **SQLite** database (`database.db`).
-*   **Image Handling:** Uses `multer` for handling multiple image uploads per product, storing them in a local `uploads` directory which is also served statically.
-*   **New Features:**
-    *   **Transaction Logging:** Records all sales transactions in a dedicated `transactions` table.
-    *   **Low Stock Tracking:** Tracks `low_stock_since_date` in the `products` table.
-
-### Database Schema (SQLite)
-
-The database consists of updated tables:
-
-*   **`users`:** Stores user information, including `id`, `email`, `password_hash`, `role` ('VILLAGER' or 'USER'), and `farm_name` for villagers.
-*   **`products`:** Stores product details, including `id`, `name`, `price`, `stock`, `category`, `low_stock_threshold`, `owner_id`. Now includes `low_stock_since_date`.
-*   **`product_images`:** Stores paths to product images.
-*   **`transactions`:** New table storing `id`, `product_id`, `quantity_sold`, `date_of_sale`, `user_id`.
-
-## Key Features
+## 2. Core Features Implemented
 
 *   **Role-Based Access Control:**
-    *   **Visitor:** Can browse all products.
-    *   **User (Buyer):** Can register, log in, view products, and purchase.
-    *   **Villager (Seller):** Can register, log in, has full CRUD control over their own products, and monitors low stock.
-*   **Secure Authentication:** Users can register and log in. Sessions are managed securely and statelessly using JWTs.
+    *   **Visitors:** Can browse available products. Sales summary is not available for visitors; they are prompted to log in.
+    *   **Users (Buyers):** Can register, log in, view products, and see a total sales summary for each product.
+    *   **Villagers (Sellers):** Can register, log in, manage their own products (add, edit, delete), receive low stock alerts, and view detailed transaction history for their products.
+*   **Secure Authentication:** User registration and login powered by JWT (JSON Web Tokens) with hashed passwords, ensuring secure access.
 *   **Advanced Product Management:**
-    *   Villagers can manage their own product listings, including multiple images, categories, and custom low-stock thresholds.
-*   **Farm Identity:** A villager's `farm_name` is displayed on their product listings.
-*   **Notifications & Alerts:**
-    *   **In-App Notifications:** Transient `SnackBar` messages for user feedback (success/error) and immediate alerts within the app.
-    *   **Low Stock Indicator in AppBar:** A badge in the AppBar for Villagers showing the count of low-stock products.
-    *   **Low Stock Products Screen:** Dedicated screen for Villagers to view low-stock products with `low_stock_since_date`.
-*   **Transaction History:** Detailed sales transaction history available for each product.
-*   **Product Detail Screen:** Comprehensive view for individual products, including transaction history.
+    *   Villagers can add and edit products with multiple images, categories ("Sweet", "Sour"), and custom low stock thresholds.
+    *   Product cards display `farm_name` and images in a swipeable gallery.
+*   **In-App Notifications:** Transient `SnackBar` messages provide user feedback (success/error) and deliver low stock alerts.
+*   **Low Stock Monitoring (for Villagers):**
+    *   A dedicated section in the villager dashboard showing all products below their low stock threshold.
+    *   An AppBar icon (shop-cart) accessible to Villagers, displaying a badge with the count of currently low-stock products.
+    *   A dedicated `LowStockProductsScreen` for Villagers to view all low-stock products, including their `low_stock_since_date`.
+*   **Sales Transaction History:**
+    *   **Product Detail Screen:** A comprehensive screen accessible by tapping any product card, displaying full product information.
+    *   **Expandable Transaction History:** Villagers can view detailed sales transaction history within `ProductDetailScreen` and `LowStockProductsScreen`.
+    *   **Sales Summary for Users/Visitors:** Non-Villager roles see only a "Total Units Sold" summary on the `ProductDetailScreen` (for authenticated Users) or a prompt to log in (for Visitors).
+*   **Audio Feedback:** Standardized to *only* occur on refresh button clicks. All other UI interactions are silent.
+*   **Reusable Components:** Extracted common refresh functionality into a `RefreshButton` widget for better modularity.
 
-## Building and Running the Project
+## 3. Architecture and Technologies
 
-### 1. Start the Backend Server
+The application follows a client-server architecture:
 
-1.  Navigate to the `backend` directory: `cd backend`
-2.  Install dependencies: `npm install`
-3.  **IMPORTANT:** Configure your `.env` file in the `backend` directory with `JWT_SECRET` and your Ethereal email credentials (for testing email sending, though email alerts are currently commented out).
-4.  Start the server: `node server.js`
-    *   The server will run on `http://0.0.0.0:3000/`.
+*   **Frontend:** Developed using **Flutter** (Dart language), targeting mobile and web platforms.
+    *   **State Management:** `provider` package.
+    *   **Routing:** Standard Flutter `Navigator`.
+    *   **UI Components:** Material Design widgets.
+*   **Backend:** Developed using **Node.js** with **Express.js**.
+    *   **Database:** **SQLite** (`sqlite3` package).
+    *   **Authentication:** JWT.
+    *   **Email Service:** NodeMailer for registration emails.
 
-### 2. Run the Flutter Application
+## 4. Database Schema
 
-1.  **Navigate to the project root:**
-    ```bash
-    cd /path/to/your/lung_chaing_farm
-    ```
-2.  **Get dependencies:**
-    ```bash
-    flutter pub get
-    ```
-3.  **Ensure `ApiService.baseUrl` is correct:**
-    *   Open `lib/services/api_service.dart`.
-    *   Verify `static const String baseUrl = 'http://localhost:3000';` (for web development).
-    *   For Android emulator, use `http://10.0.2.2:3000`.
-    *   For a physical device: Use your machine's network IP (e.g., `http://192.168.1.100:3000`).
-4.  Run the app: `flutter run` (for a connected device) or `flutter run -d web-server` (for web).
+The SQLite database includes `users`, `products`, `product_images`, and `transactions` tables.
 
-## Project Structure (Detailed)
+### ER Diagram (from MODIFICATION_DESIGN.md)
 
-*   `lib/main.dart`: Main application entry point.
-*   `lib/models`:
-    *   `product.dart`: Defines the `Product` data model, including `lowStockSinceDate`.
-    *   `user.dart`: Defines the `User` data model, including `token`.
-*   `lib/providers`:
-    *   `auth_provider.dart`: Manages user authentication state.
-    *   `low_stock_provider.dart`: Manages the state and fetching of low-stock products.
-*   `lib/screens`:
-    *   `add_product_screen.dart`: Screen for adding new products.
-    *   `product_list_screen.dart`: Public list of all products.
-    *   `auth/`: Authentication related screens (`login_screen.dart`, `register_screen.dart`).
-    *   `shared/`: Shared screens like `product_detail_screen.dart`.
-    *   `user/`: User-specific screens (`user_home_screen.dart`).
-    *   `villager/`: Villager-specific screens (`villager_dashboard_screen.dart`, `edit_product_screen.dart`, `low_stock_products_screen.dart`).
-*   `lib/services`:
-    *   `api_exception.dart`: Custom exception for API errors.
-    *   `api_service.dart`: Centralized API communication, including new methods for low-stock products and transactions.
-    *   `audio_service.dart`: Handles UI sound effects.
-    *   `notification_service.dart`: Manages in-app notifications (SnackBars).
-*   `lib/widgets`:
-    *   `product_card.dart`: Reusable widget for displaying product information.
-    *   `product_transaction_history.dart`: New widget for displaying a product's transaction history.
-    *   `shared/`: Shared widgets like `image_gallery_swiper.dart`.
-*   `test/`: Unit and widget tests.
-    *   `providers/low_stock_provider_test.dart`: Tests for `LowStockProvider`.
-    *   `widgets/product_transaction_history_test.dart`: Tests for `ProductTransactionHistory`.
+```mermaid
+erDiagram
+    users ||--o{ products : "owns"
+    products ||--o{ product_images : "has"
+    products ||--o{ transactions : "has"
 
-## Development Conventions
+    users {
+        INTEGER id PK
+        TEXT email
+        TEXT password_hash
+        TEXT role
+        TEXT farm_name
+    }
 
-*   **State Management:** App-wide state is managed via `ChangeNotifier` and `Provider`.
-*   **API Service:** API communication is centralized in the `ApiService` singleton, managing authentication tokens.
-*   **Modularity:** Code is organized by feature and/or layer to improve scalability and maintainability.
-*   **Error Handling:** Custom `ApiException` and `NotificationService` for consistent, user-friendly error reporting. `try-catch` blocks are used for all risky operations.
-*   **Audio Feedback:** `AudioService` provides consistent click sounds on interactive elements.
-*   **Null Safety:** Strictly adheres to Dart's null safety features.
-*   **Formatting:** `dart format` is used for consistent code style.
-*   **Linting:** `flutter_lints` is used for code quality.
+    products {
+        INTEGER id PK
+        TEXT name
+        REAL price
+        INTEGER stock
+        TEXT category
+        INTEGER low_stock_threshold
+        INTEGER owner_id FK "users.id"
+        INTEGER low_stock_since_date NULL "Unix timestamp"
+    }
+
+    product_images {
+        INTEGER id PK
+        INTEGER product_id FK "products.id"
+        TEXT image_path
+    }
+
+    transactions {
+        INTEGER id PK
+        INTEGER product_id FK "products.id"
+        INTEGER quantity_sold
+        INTEGER date_of_sale "Unix timestamp"
+        INTEGER user_id FK "users.id"
+    }
+```
+
+## 5. Backend API Endpoints
+
+Key API endpoints include:
+
+*   **`POST /auth/register`**: User registration.
+*   **`POST /auth/login`**: User login.
+*   **`GET /products`**: Retrieve all products.
+*   **`GET /products/:id`**: Retrieve a single product.
+*   **`POST /products`**: Add a new product (Villager only).
+*   **`PUT /products/:id`**: Update a product (Villager only).
+*   **`DELETE /products/:id`**: Delete a product (Villager only).
+*   **`POST /api/products/:productId/purchase`**: Handle product purchase, decrement stock, and record transaction.
+*   **`GET /api/villager/low-stock-products`**: Retrieve low-stock products for the authenticated Villager.
+*   **`GET /api/products/:productId/transactions`**: Retrieve sales transaction history for a specific product.
+
+## 6. Frontend File Organization
+
+The Flutter frontend (`lib` directory) is organized as follows:
+
+*   `main.dart`: Application entry point, `AuthWrapper` for role-based routing.
+*   `lib/models`: Dart classes representing data structures (e.g., `Product`, `User`).
+*   `lib/providers`: `ChangeNotifierProvider` implementations for state management (e.g., `AuthProvider`, `LowStockProvider`).
+*   `lib/screens`: UI screens, categorized by:
+    *   `auth`: `LoginScreen`, `RegisterScreen`.
+    *   `shared`: `ProductDetailScreen`.
+    *   `user`: (Placeholder for future user-specific screens).
+    *   `villager`: `VillagerDashboardScreen`, `LowStockProductsScreen`, `EditProductScreen`.
+    *   `visitor`: (Placeholder for future visitor-specific screens).
+*   `lib/services`: Service classes for various functionalities:
+    *   `api_service.dart`: Handles all communication with the backend API.
+    *   `audio_service.dart`: Manages audio playback for UI feedback.
+    *   `notification_service.dart`: Provides in-app `SnackBar` notifications.
+*   `lib/widgets`: Reusable UI components:
+    *   `product_card.dart`: Displays individual product information.
+    *   `product_transaction_history.dart`: Displays detailed transaction history for a product.
+    *   `shared/image_gallery_swiper.dart`: Swipeable image gallery for products.
+    *   `refresh_button.dart`: Reusable button for refreshing content.
+
+## 7. Development Workflow
+
+The project utilizes standard Flutter and Node.js development practices:
+
+*   **Code Generation:** `build_runner` for `json_serializable` (not currently used but standard for models).
+*   **Linting & Formatting:** `flutter_lints` and `dart format` ensure code quality and consistency.
+*   **Testing:** Unit and widget tests are used for critical components.
+
+## 8. Development History (from MODIFICATION_IMPLEMENTATION.md)
+
+The project enhancements were conducted in several phases:
+
+### Phase 0: Initial Setup and Verification
+*   Created design documentation (`MODIFICATION_DESIGN.md`).
+*   Confirmed initial project state.
+
+### Phase 1: Database and Backend Foundations
+*   Implemented `products` table modifications (`low_stock_since_date`).
+*   Created `transactions` table.
+*   Backend tests for schema were added.
+
+### Phase 2: Backend API Endpoints and Logic
+*   Implemented `POST /api/products/:productId/purchase` (purchase, decrement stock, record transaction).
+*   Implemented `GET /api/villager/low-stock-products` (retrieve low-stock products for Villager).
+*   Implemented `GET /api/products/:productId/transactions` (retrieve sales transaction history).
+
+### Phase 3: Frontend - Low Stock Indicator and Routing
+*   Integrated `shop-cart.png` icon.
+*   Created `LowStockProvider` for low-stock product state management.
+*   Implemented AppBar low-stock indicator with `Badge`.
+*   Created `LowStockProductsScreen`.
+
+### Phase 4: Frontend - Transaction History Display
+*   Created `ProductTransactionHistory` reusable widget.
+*   Integrated `ProductTransactionHistory` into `LowStockProductsScreen` and `ProductDetailScreen`.
+*   Modified `ProductCard` for navigation to `ProductDetailScreen`.
+
+### Phase 5: Finalization and Review
+*   Addressed numerous bugs: `String?` type mismatches, `LateInitializationError`, `TypeError` for image URLs.
+*   Refined sound logic: Standardized sound playback to *only* occur on refresh button clicks, removing unintended triggers.
+*   UI adjustments: Removed/restored "Add Product" button as requested.
+*   Code cleanup: Removed `debugPrint` statements and unused imports.
+*   Documentation updates: `README.md` and `GEMINI.md` created/updated.
+*   Implemented reusable `RefreshButton` widget.
+*   Implemented role-based display of sales summary on `ProductDetailScreen`.
+
+This comprehensive overview should serve as a valuable resource for understanding, maintaining, and further developing the Lung Chaing Farm application.
