@@ -66,7 +66,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
         if (err) console.error('Error creating transactions table', err.message);
         else console.log('Transactions table is ready.');
       });
-      
+
       // Original products table creation
       db.run(`CREATE TABLE IF NOT EXISTS products (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -92,9 +92,9 @@ const db = new sqlite3.Database(dbPath, (err) => {
               console.error('Error fetching products table info', err);
               return;
             }
-            
+
             const existingColumnNames = existingColumns.map(c => c.name);
-            
+
             columns.forEach(column => {
               if (!existingColumnNames.includes(column.name)) {
                 db.run(`ALTER TABLE products ADD COLUMN ${column.name} ${column.type}`, (err) => {
@@ -146,72 +146,72 @@ app.get('/', (req, res) => {
 
 // POST: Register a new user
 app.post('/auth/register', (req, res) => {
-    const { email, password, role, farm_name, address, contact_info } = req.body;
+  const { email, password, role, farm_name, address, contact_info } = req.body;
 
-    if (!email || !password || !role) {
-        return res.status(400).json({ error: 'Email, password, and role are required.' });
-    }
-    if (role === 'VILLAGER' && !farm_name) {
-        return res.status(400).json({ error: 'Farm name is required for villagers.' });
-    }
+  if (!email || !password || !role) {
+    return res.status(400).json({ error: 'Email, password, and role are required.' });
+  }
+  if (role === 'VILLAGER' && !farm_name) {
+    return res.status(400).json({ error: 'Farm name is required for villagers.' });
+  }
 
-    const salt = bcrypt.genSaltSync(10);
-    const password_hash = bcrypt.hashSync(password, salt);
+  const salt = bcrypt.genSaltSync(10);
+  const password_hash = bcrypt.hashSync(password, salt);
 
-    const sql = `INSERT INTO users (email, password_hash, role, farm_name, address, contact_info)
+  const sql = `INSERT INTO users (email, password_hash, role, farm_name, address, contact_info)
                  VALUES (?, ?, ?, ?, ?, ?)`;
-    const params = [email, password_hash, role, farm_name, address, contact_info];
+  const params = [email, password_hash, role, farm_name, address, contact_info];
 
-    db.run(sql, params, function(err) {
-        if (err) {
-            return res.status(500).json({ error: 'Could not register user. Email might already be in use.' });
-        }
-        res.status(201).json({ id: this.lastID, message: 'User registered successfully.' });
-    });
+  db.run(sql, params, function (err) {
+    if (err) {
+      return res.status(500).json({ error: 'Could not register user. Email might already be in use.' });
+    }
+    res.status(201).json({ id: this.lastID, message: 'User registered successfully.' });
+  });
 });
 
 // POST: Login a user
 app.post('/auth/login', (req, res) => {
-    const { email, password } = req.body;
-    if (!email || !password) {
-        return res.status(400).json({ error: 'Email and password are required.' });
+  const { email, password } = req.body;
+  if (!email || !password) {
+    return res.status(400).json({ error: 'Email and password are required.' });
+  }
+
+  const sql = 'SELECT * FROM users WHERE email = ?';
+  db.get(sql, [email], (err, user) => {
+    if (err) {
+      return res.status(500).json({ error: 'Server error.' });
+    }
+    if (!user) {
+      return res.status(401).json({ error: 'Unmatched email or password.' });
     }
 
-    const sql = 'SELECT * FROM users WHERE email = ?';
-    db.get(sql, [email], (err, user) => {
-        if (err) {
-            return res.status(500).json({ error: 'Server error.' });
-        }
-        if (!user) {
-            return res.status(401).json({ error: 'Invalid credentials.' });
-        }
+    const isPasswordCorrect = bcrypt.compareSync(password, user.password_hash);
+    if (!isPasswordCorrect) {
+      return res.status(401).json({ error: 'Invalid credentials.' });
+    }
 
-        const isPasswordCorrect = bcrypt.compareSync(password, user.password_hash);
-        if (!isPasswordCorrect) {
-            return res.status(401).json({ error: 'Invalid credentials.' });
-        }
-
-        const token = jwt.sign({ id: user.id, role: user.role }, JWT_SECRET, { expiresIn: '1h' });
-        res.json({ token, user: { id: user.id, email: user.email, role: user.role, farm_name: user.farm_name } });
-    });
+    const token = jwt.sign({ email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '1h' });
+    res.json({ token, user: { farm_name: user.farm_name } });
+  });
 });
 
 // --- Middleware to verify token ---
 const verifyToken = (req, res, next) => {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
 
-    if (!token) {
-        return res.status(403).json({ error: 'A token is required for authentication.' });
-    }
+  if (!token) {
+    return res.status(403).json({ error: 'A token is required for authentication.' });
+  }
 
-    try {
-        const decoded = jwt.verify(token, JWT_SECRET);
-        req.user = decoded;
-    } catch (err) {
-        return res.status(401).json({ error: 'Invalid Token.' });
-    }
-    return next();
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.user = decoded;
+  } catch (err) {
+    return res.status(401).json({ error: 'Invalid Token.' });
+  }
+  return next();
 };
 
 
@@ -219,14 +219,14 @@ const verifyToken = (req, res, next) => {
 
 // GET: Fetch low-stock products for the authenticated Villager (Protected, Villager Only)
 app.get('/villager/low-stock-products', verifyToken, (req, res) => {
-    // Only villagers can access this endpoint
-    if (req.user.role !== 'VILLAGER') {
-        return res.status(403).json({ error: 'Forbidden: Only villagers can view low stock products.' });
-    }
+  // Only villagers can access this endpoint
+  if (req.user.role !== 'VILLAGER') {
+    return res.status(403).json({ error: 'Forbidden: Only villagers can view low stock products.' });
+  }
 
-    const villagerId = req.user.id;
+  const villagerId = req.user.email;
 
-    const sql = `
+  const sql = `
         SELECT
             p.id,
             p.name,
@@ -246,26 +246,26 @@ app.get('/villager/low-stock-products', verifyToken, (req, res) => {
         ORDER BY p.low_stock_since_date ASC;
     `;
 
-    db.all(sql, [villagerId], (err, rows) => {
-        if (err) {
-            return res.status(500).json({ error: err.message });
-        }
+  db.all(sql, [villagerId], (err, rows) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
 
-        const products = rows.map(row => ({
-            id: row.id,
-            name: row.name,
-            price: row.price,
-            stock: row.stock,
-            category: row.category,
-            low_stock_threshold: row.low_stock_threshold,
-            low_stock_since_date: row.low_stock_since_date,
-            owner_id: row.owner_id,
-            farm_name: row.farm_name,
-            image_urls: row.image_urls ? row.image_urls.split(',') : [],
-        }));
+    const products = rows.map(row => ({
+      id: row.id,
+      name: row.name,
+      price: row.price,
+      stock: row.stock,
+      category: row.category,
+      low_stock_threshold: row.low_stock_threshold,
+      low_stock_since_date: row.low_stock_since_date,
+      owner_id: row.owner_id,
+      farm_name: row.farm_name,
+      image_urls: row.image_urls ? row.image_urls.split(',') : [],
+    }));
 
-        res.json({ products });
-    });
+    res.json({ products });
+  });
 });
 
 // GET: Fetch all products with owner and image info
@@ -325,20 +325,20 @@ app.post('/products', verifyToken, upload.array('images', 5), (req, res) => {
   }
 
   const { name, price, stock, category, low_stock_threshold } = req.body;
-  const owner_id = req.user.id;
+  const owner_id = req.user.email;
 
   if (!name || price === undefined || stock === undefined) {
     return res.status(400).json({ error: 'Missing required fields: name, price, stock' });
   }
 
   const productSql = 'INSERT INTO products (name, price, stock, owner_id, category, low_stock_threshold) VALUES (?, ?, ?, ?, ?, ?)';
-  db.run(productSql, [name, price, stock, owner_id, category, low_stock_threshold], function(err) {
+  db.run(productSql, [name, price, stock, owner_id, category, low_stock_threshold], function (err) {
     if (err) {
       return res.status(500).json({ error: err.message });
     }
-    
+
     const productId = this.lastID;
-    
+
     // Handle multiple images
     if (req.files) {
       const imageSql = 'INSERT INTO product_images (product_id, image_path) VALUES (?, ?)';
@@ -354,293 +354,293 @@ app.post('/products', verifyToken, upload.array('images', 5), (req, res) => {
         res.status(201).json({ id: productId, message: 'Product added successfully with images.' });
       });
     } else {
-        res.status(201).json({ id: productId, message: 'Product added successfully without images.' });
+      res.status(201).json({ id: productId, message: 'Product added successfully without images.' });
     }
   });
 });
 
 // POST: Purchase a product (Protected, User Only)
 app.post('/products/:productId/purchase', verifyToken, (req, res) => {
-    // Only regular users (buyers) can purchase
-    if (req.user.role !== 'USER') {
-        return res.status(403).json({ error: 'Forbidden: Only users can purchase products.' });
+  // Only regular users (buyers) can purchase
+  if (req.user.role !== 'USER') {
+    return res.status(403).json({ error: 'Forbidden: Only users can purchase products.' });
+  }
+
+  const productId = req.params.productId;
+  const { quantity } = req.body;
+  const userId = req.user.email;
+
+  if (!quantity || typeof quantity !== 'number' || quantity <= 0) {
+    return res.status(400).json({ error: 'Valid positive quantity is required.' });
+  }
+
+  db.get('SELECT id, stock, low_stock_threshold, low_stock_since_date, owner_id FROM products WHERE id = ?', [productId], (err, product) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    if (!product) {
+      return res.status(404).json({ error: 'Product not found.' });
+    }
+    if (product.stock < quantity) {
+      return res.status(400).json({ error: `Insufficient stock. Only ${product.stock}kg available.` });
     }
 
-    const productId = req.params.productId;
-    const { quantity } = req.body;
-    const userId = req.user.id;
+    // Begin transaction for atomicity
+    db.serialize(() => {
+      db.run('BEGIN TRANSACTION;');
 
-    if (!quantity || typeof quantity !== 'number' || quantity <= 0) {
-        return res.status(400).json({ error: 'Valid positive quantity is required.' });
-    }
+      const newStock = product.stock - quantity;
+      const currentTime = Math.floor(Date.now() / 1000); // Unix timestamp
 
-    db.get('SELECT id, stock, low_stock_threshold, low_stock_since_date, owner_id FROM products WHERE id = ?', [productId], (err, product) => {
-        if (err) {
+      // Update product stock and low_stock_since_date
+      db.run(
+        'UPDATE products SET stock = ?, low_stock_since_date = ? WHERE id = ?',
+        [
+          newStock,
+          (newStock <= product.low_stock_threshold && product.low_stock_since_date === null)
+            ? currentTime // Set if newly low-stock
+            : (newStock > product.low_stock_threshold)
+              ? null // Clear if recovered
+              : product.low_stock_since_date, // Keep existing if already low and still low
+          productId
+        ],
+        function (err) {
+          if (err) {
+            db.run('ROLLBACK;');
             return res.status(500).json({ error: err.message });
-        }
-        if (!product) {
-            return res.status(404).json({ error: 'Product not found.' });
-        }
-        if (product.stock < quantity) {
-            return res.status(400).json({ error: `Insufficient stock. Only ${product.stock}kg available.` });
-        }
+          }
 
-        // Begin transaction for atomicity
-        db.serialize(() => {
-            db.run('BEGIN TRANSACTION;');
+          // Record transaction
+          db.run(
+            'INSERT INTO transactions (product_id, quantity_sold, date_of_sale, user_id) VALUES (?, ?, ?, ?)',
+            [productId, quantity, currentTime, userId],
+            function (err) {
+              if (err) {
+                db.run('ROLLBACK;');
+                return res.status(500).json({ error: err.message });
+              }
 
-            const newStock = product.stock - quantity;
-            const currentTime = Math.floor(Date.now() / 1000); // Unix timestamp
-
-            // Update product stock and low_stock_since_date
-            db.run(
-                'UPDATE products SET stock = ?, low_stock_since_date = ? WHERE id = ?',
-                [
-                    newStock,
-                    (newStock <= product.low_stock_threshold && product.low_stock_since_date === null)
-                        ? currentTime // Set if newly low-stock
-                        : (newStock > product.low_stock_threshold)
-                            ? null // Clear if recovered
-                            : product.low_stock_since_date, // Keep existing if already low and still low
-                    productId
-                ],
-                function(err) {
-                    if (err) {
-                        db.run('ROLLBACK;');
-                        return res.status(500).json({ error: err.message });
-                    }
-
-                    // Record transaction
-                    db.run(
-                        'INSERT INTO transactions (product_id, quantity_sold, date_of_sale, user_id) VALUES (?, ?, ?, ?)',
-                        [productId, quantity, currentTime, userId],
-                        function(err) {
-                            if (err) {
-                                db.run('ROLLBACK;');
-                                return res.status(500).json({ error: err.message });
-                            }
-
-                            db.run('COMMIT;', (commitErr) => {
-                                if (commitErr) {
-                                    return res.status(500).json({ error: commitErr.message });
-                                }
-
-                                // Fetch updated product info to send in response
-                                db.get('SELECT name, stock, low_stock_threshold, low_stock_since_date FROM products WHERE id = ?', [productId], (err, updatedProduct) => {
-                                    if (err) {
-                                        return res.status(500).json({ error: err.message });
-                                    }
-                                    let responsePayload = {
-                                        message: 'Product purchased successfully.',
-                                        product: {
-                                            id: productId,
-                                            name: updatedProduct.name,
-                                            stock: updatedProduct.stock,
-                                            low_stock_threshold: updatedProduct.low_stock_threshold,
-                                            low_stock_since_date: updatedProduct.low_stock_since_date
-                                        }
-                                    };
-                                    // Optionally add low stock alert to response if villager needs immediate feedback
-                                    if (updatedProduct.stock <= updatedProduct.low_stock_threshold) {
-                                        responsePayload.lowStockAlert = true;
-                                    }
-                                    res.status(200).json(responsePayload);
-                                });
-                            });
-                        }
-                    );
+              db.run('COMMIT;', (commitErr) => {
+                if (commitErr) {
+                  return res.status(500).json({ error: commitErr.message });
                 }
-            );
-        });
+
+                // Fetch updated product info to send in response
+                db.get('SELECT name, stock, low_stock_threshold, low_stock_since_date FROM products WHERE id = ?', [productId], (err, updatedProduct) => {
+                  if (err) {
+                    return res.status(500).json({ error: err.message });
+                  }
+                  let responsePayload = {
+                    message: 'Product purchased successfully.',
+                    product: {
+                      id: productId,
+                      name: updatedProduct.name,
+                      stock: updatedProduct.stock,
+                      low_stock_threshold: updatedProduct.low_stock_threshold,
+                      low_stock_since_date: updatedProduct.low_stock_since_date
+                    }
+                  };
+                  // Optionally add low stock alert to response if villager needs immediate feedback
+                  if (updatedProduct.stock <= updatedProduct.low_stock_threshold) {
+                    responsePayload.lowStockAlert = true;
+                  }
+                  res.status(200).json(responsePayload);
+                });
+              });
+            }
+          );
+        }
+      );
     });
+  });
 });
 
 // PUT: Update a product (Protected, Owner Only)
 app.put('/products/:id', verifyToken, upload.array('images'), (req, res) => {
-    const { name, price, stock, category, low_stock_threshold, existing_image_urls } = req.body;
-    const productId = req.params.id;
-    const userId = req.user.id;
-    let imagesToKeep = [];
-    if (existing_image_urls) {
-        try {
-            imagesToKeep = JSON.parse(existing_image_urls);
-        } catch (e) {
-            console.error('Failed to parse existing_image_urls:', e);
-            return res.status(400).json({ error: 'Invalid format for existing_image_urls.' });
-        }
+  const { name, price, stock, category, low_stock_threshold, existing_image_urls } = req.body;
+  const productId = req.params.id;
+  const userId = req.user.email;
+  let imagesToKeep = [];
+  if (existing_image_urls) {
+    try {
+      imagesToKeep = JSON.parse(existing_image_urls);
+    } catch (e) {
+      console.error('Failed to parse existing_image_urls:', e);
+      return res.status(400).json({ error: 'Invalid format for existing_image_urls.' });
+    }
+  }
+
+  // First, verify ownership
+  db.get('SELECT owner_id FROM products WHERE id = ?', [productId], (err, product) => {
+    if (err) {
+      return res.status(500).json({ error: 'Database error.' });
+    }
+    if (!product) {
+      return res.status(404).json({ error: 'Product not found.' });
+    }
+    if (product.owner_id !== userId) {
+      return res.status(403).json({ error: 'Forbidden: You do not own this product.' });
     }
 
-    // First, verify ownership
-    db.get('SELECT owner_id FROM products WHERE id = ?', [productId], (err, product) => {
-        if (err) {
-            return res.status(500).json({ error: 'Database error.' });
+    // --- Handle Image Updates ---
+    db.all('SELECT id, image_path FROM product_images WHERE product_id = ?', [productId], (err, currentImages) => {
+      if (err) {
+        return res.status(500).json({ error: 'Error fetching current images.' });
+      }
+
+      const currentImagePaths = currentImages.map(img => img.image_path);
+      const imagesToDelete = currentImagePaths.filter(path => !imagesToKeep.includes(path));
+
+      // Delete images that are no longer kept
+      imagesToDelete.forEach(imagePath => {
+        fs.unlink(path.join(__dirname, imagePath), (unlinkErr) => {
+          if (unlinkErr) console.error('Error deleting old image file:', unlinkErr);
+        });
+        db.run('DELETE FROM product_images WHERE image_path = ?', [imagePath], (dbErr) => {
+          if (dbErr) console.error('Error deleting image from DB:', dbErr);
+        });
+      });
+
+      // Add new images
+      if (req.files && req.files.length > 0) {
+        const imageSql = 'INSERT INTO product_images (product_id, image_path) VALUES (?, ?)';
+        const imageStmt = db.prepare(imageSql);
+        for (const file of req.files) {
+          const imagePath = `uploads/${file.filename}`;
+          imageStmt.run(productId, imagePath);
         }
-        if (!product) {
-            return res.status(404).json({ error: 'Product not found.' });
-        }
-        if (product.owner_id !== userId) {
-            return res.status(403).json({ error: 'Forbidden: You do not own this product.' });
-        }
+        imageStmt.finalize();
+      }
 
-        // --- Handle Image Updates ---
-        db.all('SELECT id, image_path FROM product_images WHERE product_id = ?', [productId], (err, currentImages) => {
-            if (err) {
-                return res.status(500).json({ error: 'Error fetching current images.' });
-            }
+      // --- Update Product Fields ---
+      const fields = [];
+      const params = [];
+      if (name !== undefined) {
+        fields.push('name = ?');
+        params.push(name);
+      }
+      if (price !== undefined) {
+        fields.push('price = ?');
+        params.push(price);
+      }
+      if (stock !== undefined) {
+        fields.push('stock = ?');
+        params.push(stock);
+      }
+      if (category !== undefined) {
+        fields.push('category = ?');
+        params.push(category);
+      }
+      if (low_stock_threshold !== undefined) {
+        fields.push('low_stock_threshold = ?');
+        params.push(low_stock_threshold);
+      }
 
-            const currentImagePaths = currentImages.map(img => img.image_path);
-            const imagesToDelete = currentImagePaths.filter(path => !imagesToKeep.includes(path));
+      if (fields.length === 0 && (!req.files || req.files.length === 0) && imagesToDelete.length === 0) {
+        return res.status(400).json({ error: 'No fields or images to update provided.' });
+      }
 
-            // Delete images that are no longer kept
-            imagesToDelete.forEach(imagePath => {
-                fs.unlink(path.join(__dirname, imagePath), (unlinkErr) => {
-                    if (unlinkErr) console.error('Error deleting old image file:', unlinkErr);
-                });
-                db.run('DELETE FROM product_images WHERE image_path = ?', [imagePath], (dbErr) => {
-                    if (dbErr) console.error('Error deleting image from DB:', dbErr);
-                });
-            });
+      if (fields.length > 0) {
+        params.push(productId);
+        const sql = `UPDATE products SET ${fields.join(', ')} WHERE id = ?`;
 
-            // Add new images
-            if (req.files && req.files.length > 0) {
-              const imageSql = 'INSERT INTO product_images (product_id, image_path) VALUES (?, ?)';
-              const imageStmt = db.prepare(imageSql);
-              for (const file of req.files) {
-                const imagePath = `uploads/${file.filename}`;
-                imageStmt.run(productId, imagePath);
-              }
-              imageStmt.finalize();
-            }
+        db.run(sql, params, function (err) {
+          if (err) {
+            return res.status(500).json({ error: err.message });
+          }
 
-            // --- Update Product Fields ---
-            const fields = [];
-            const params = [];
-            if (name !== undefined) {
-                fields.push('name = ?');
-                params.push(name);
-            }
-            if (price !== undefined) {
-                fields.push('price = ?');
-                params.push(price);
-            }
-            if (stock !== undefined) {
-                fields.push('stock = ?');
-                params.push(stock);
-            }
-            if (category !== undefined) {
-                fields.push('category = ?');
-                params.push(category);
-            }
-            if (low_stock_threshold !== undefined) {
-                fields.push('low_stock_threshold = ?');
-                params.push(low_stock_threshold);
-            }
-
-            if (fields.length === 0 && (!req.files || req.files.length === 0) && imagesToDelete.length === 0) {
-                return res.status(400).json({ error: 'No fields or images to update provided.' });
-            }
-
-            if (fields.length > 0) {
-                params.push(productId);
-                const sql = `UPDATE products SET ${fields.join(', ')} WHERE id = ?`;
-
-                db.run(sql, params, function(err) {
-                    if (err) {
-                        return res.status(500).json({ error: err.message });
-                    }
-                    
-                    // After successful product field update, fetch the latest product info
-                    // to determine low stock status for the response.
-                    const fetchUpdatedProductSql = `
+          // After successful product field update, fetch the latest product info
+          // to determine low stock status for the response.
+          const fetchUpdatedProductSql = `
                         SELECT p.name, p.stock, p.low_stock_threshold, u.email, u.farm_name
                         FROM products p
                         JOIN users u ON p.owner_id = u.id
                         WHERE p.id = ?`;
-                    db.get(fetchUpdatedProductSql, [productId], (fetchErr, updatedProductInfo) => {
-                        if (fetchErr) {
-                            console.error('Error fetching updated product info:', fetchErr);
-                            // Proceed with a generic success response if fetching fails
-                            return res.json({ message: 'Product updated successfully.' });
-                        }
-
-                        let responsePayload = { message: 'Product updated successfully.' };
-                        if (updatedProductInfo && updatedProductInfo.stock <= updatedProductInfo.low_stock_threshold) {
-                            if (updatedProductInfo.email) {
-                                // sendLowStockEmail(
-                                //     updatedProductInfo.email,
-                                //     updatedProductInfo.farm_name,
-                                //     updatedProductInfo.name,
-                                //     updatedProductInfo.stock,
-                                //     updatedProductInfo.low_stock_threshold
-                                // );
-                            } else {
-                                console.warn(`Product owner ${updatedProductInfo.email} has no email to send low stock alert to.`);
-                            }
-
-                            responsePayload = {
-                                message: 'Product updated successfully.',
-                                lowStockAlert: true,
-                                productName: updatedProductInfo.name,
-                                currentStock: updatedProductInfo.stock,
-                                threshold: updatedProductInfo.low_stock_threshold
-                            };
-                        }
-                        return res.json(responsePayload);
-                    });
-                });
-            } else {
-                // If only images were updated, then directly respond.
-                // We should also re-fetch productInfo here if image changes could affect low stock.
-                // For simplicity now, assuming image changes don't affect low stock status directly.
-                res.json({ message: 'Product images updated successfully.' });
+          db.get(fetchUpdatedProductSql, [productId], (fetchErr, updatedProductInfo) => {
+            if (fetchErr) {
+              console.error('Error fetching updated product info:', fetchErr);
+              // Proceed with a generic success response if fetching fails
+              return res.json({ message: 'Product updated successfully.' });
             }
+
+            let responsePayload = { message: 'Product updated successfully.' };
+            if (updatedProductInfo && updatedProductInfo.stock <= updatedProductInfo.low_stock_threshold) {
+              if (updatedProductInfo.email) {
+                // sendLowStockEmail(
+                //     updatedProductInfo.email,
+                //     updatedProductInfo.farm_name,
+                //     updatedProductInfo.name,
+                //     updatedProductInfo.stock,
+                //     updatedProductInfo.low_stock_threshold
+                // );
+              } else {
+                console.warn(`Product owner ${updatedProductInfo.email} has no email to send low stock alert to.`);
+              }
+
+              responsePayload = {
+                message: 'Product updated successfully.',
+                lowStockAlert: true,
+                productName: updatedProductInfo.name,
+                currentStock: updatedProductInfo.stock,
+                threshold: updatedProductInfo.low_stock_threshold
+              };
+            }
+            return res.json(responsePayload);
+          });
         });
+      } else {
+        // If only images were updated, then directly respond.
+        // We should also re-fetch productInfo here if image changes could affect low stock.
+        // For simplicity now, assuming image changes don't affect low stock status directly.
+        res.json({ message: 'Product images updated successfully.' });
+      }
     });
+  });
 });
 
 
 // DELETE: Remove a product (Protected, Owner Only)
 app.delete('/products/:id', verifyToken, (req, res) => {
-    const productId = req.params.id;
-    const userId = req.user.id;
+  const productId = req.params.id;
+  const userId = req.user.email;
 
-    // First, verify ownership
-    db.get('SELECT owner_id FROM products WHERE id = ?', [productId], (err, product) => {
-        if (err) {
-            return res.status(500).json({ error: 'Database error.' });
-        }
-        if (!product) {
-            return res.status(404).json({ error: 'Product not found.' });
-        }
-        if (product.owner_id !== userId) {
-            return res.status(403).json({ error: 'Forbidden: You do not own this product.' });
-        }
+  // First, verify ownership
+  db.get('SELECT owner_id FROM products WHERE id = ?', [productId], (err, product) => {
+    if (err) {
+      return res.status(500).json({ error: 'Database error.' });
+    }
+    if (!product) {
+      return res.status(404).json({ error: 'Product not found.' });
+    }
+    if (product.owner_id !== userId) {
+      return res.status(403).json({ error: 'Forbidden: You do not own this product.' });
+    }
 
-        // Get all image paths for the product to delete the files
-        db.all('SELECT image_path FROM product_images WHERE product_id = ?', [productId], (err, images) => {
-            if (err) {
-                return res.status(500).json({ error: 'Could not fetch product images.' });
-            }
+    // Get all image paths for the product to delete the files
+    db.all('SELECT image_path FROM product_images WHERE product_id = ?', [productId], (err, images) => {
+      if (err) {
+        return res.status(500).json({ error: 'Could not fetch product images.' });
+      }
 
-            // Delete image files from the filesystem
-            images.forEach(image => {
-                fs.unlink(path.join(__dirname, image.image_path), (unlinkErr) => {
-                    if (unlinkErr) console.error('Error deleting image file:', unlinkErr);
-                });
-            });
-
-            // Delete the product and its image records from the database
-            db.serialize(() => {
-                db.run('DELETE FROM product_images WHERE product_id = ?', [productId], (err) => {
-                    if (err) return res.status(500).json({ error: 'Could not delete product images.' });
-                });
-                db.run('DELETE FROM products WHERE id = ?', [productId], function(err) {
-                    if (err) return res.status(500).json({ error: 'Could not delete product.' });
-                    res.json({ message: 'Product deleted successfully.' });
-                });
-            });
+      // Delete image files from the filesystem
+      images.forEach(image => {
+        fs.unlink(path.join(__dirname, image.image_path), (unlinkErr) => {
+          if (unlinkErr) console.error('Error deleting image file:', unlinkErr);
         });
+      });
+
+      // Delete the product and its image records from the database
+      db.serialize(() => {
+        db.run('DELETE FROM product_images WHERE product_id = ?', [productId], (err) => {
+          if (err) return res.status(500).json({ error: 'Could not delete product images.' });
+        });
+        db.run('DELETE FROM products WHERE id = ?', [productId], function (err) {
+          if (err) return res.status(500).json({ error: 'Could not delete product.' });
+          res.json({ message: 'Product deleted successfully.' });
+        });
+      });
     });
+  });
 });
 
 
@@ -693,23 +693,23 @@ app.get('/products/:id', (req, res) => {
 
 // GET: Fetch sales transaction history for a specific product (Protected, Owner Only)
 app.get('/products/:productId/transactions', verifyToken, (req, res) => {
-    const productId = req.params.productId;
-    const { days } = req.query; // Optional query parameter for filtering by days
-    const userId = req.user.id;
+  const productId = req.params.productId;
+  const { days } = req.query; // Optional query parameter for filtering by days
+  const userId = req.user.email;
 
-    // First, verify ownership
-    db.get('SELECT owner_id FROM products WHERE id = ?', [productId], (err, product) => {
-        if (err) {
-            return res.status(500).json({ error: 'Database error.' });
-        }
-        if (!product) {
-            return res.status(404).json({ error: 'Product not found.' });
-        }
-        if (product.owner_id !== userId) {
-            return res.status(403).json({ error: 'Forbidden: You do not own this product.' });
-        }
+  // First, verify ownership
+  db.get('SELECT owner_id FROM products WHERE id = ?', [productId], (err, product) => {
+    if (err) {
+      return res.status(500).json({ error: 'Database error.' });
+    }
+    if (!product) {
+      return res.status(404).json({ error: 'Product not found.' });
+    }
+    if (product.owner_id !== userId) {
+      return res.status(403).json({ error: 'Forbidden: You do not own this product.' });
+    }
 
-        let sql = `
+    let sql = `
             SELECT
                 t.id,
                 t.product_id,
@@ -721,23 +721,23 @@ app.get('/products/:productId/transactions', verifyToken, (req, res) => {
             JOIN users u ON t.user_id = u.id
             WHERE t.product_id = ?
         `;
-        const params = [productId];
+    const params = [productId];
 
-        if (days && !isNaN(parseInt(days))) {
-            const timeAgo = Math.floor(Date.now() / 1000) - (parseInt(days) * 24 * 60 * 60);
-            sql += ` AND t.date_of_sale >= ?`;
-            params.push(timeAgo);
-        }
+    if (days && !isNaN(parseInt(days))) {
+      const timeAgo = Math.floor(Date.now() / 1000) - (parseInt(days) * 24 * 60 * 60);
+      sql += ` AND t.date_of_sale >= ?`;
+      params.push(timeAgo);
+    }
 
-        sql += ` ORDER BY t.date_of_sale DESC;`;
+    sql += ` ORDER BY t.date_of_sale DESC;`;
 
-        db.all(sql, params, (err, transactions) => {
-            if (err) {
-                return res.status(500).json({ error: err.message });
-            }
-            res.json({ transactions });
-        });
+    db.all(sql, params, (err, transactions) => {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      res.json({ transactions });
     });
+  });
 });
 
 // --- Server Start ---

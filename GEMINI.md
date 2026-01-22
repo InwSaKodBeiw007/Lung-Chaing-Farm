@@ -12,7 +12,7 @@ The "Lung Chaing Farm" is a Flutter-based marketplace application designed to co
     *   **Visitors:** Can browse available products. Sales summary is not available for visitors; they are prompted to log in.
     *   **Users (Buyers):** Can register, log in, view products, and see a total sales summary for each product.
     *   **Villagers (Sellers):** Can register, log in, manage their own products (add, edit, delete), receive low stock alerts, and view detailed transaction history for their products.
-*   **Secure Authentication:** User registration and login powered by JWT (JSON Web Tokens) with hashed passwords, ensuring secure access.
+*   **Secure Authentication:** User registration and login powered by JWT (JSON Web Tokens) with hashed passwords, ensuring secure access. The login API now returns a token and a minimal user object (`{ farm_name: user.farm_name }`). This design choice requires the client-side application to decode the JWT to retrieve the user's `id` and `role` for its logic and UI, which adds a layer of client-side complexity but reduces redundancy in the initial API response.
 *   **Advanced Product Management:**
     *   Villagers can add and edit products with multiple images, categories ("Sweet", "Sour"), and custom low stock thresholds.
     *   Product cards display `farm_name` and images in a swipeable gallery.
