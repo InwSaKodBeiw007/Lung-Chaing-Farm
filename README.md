@@ -18,42 +18,6 @@ This is the frontend Flutter application for the Lung Chaing Farm marketplace. I
 *   **Product Detail Screen:** A comprehensive screen accessible by tapping any product card, displaying full product information and its transaction history.
 *   **Expandable Transaction History:** On the Product Detail Screen and within the Low Stock Products View, individual product entries now feature an expandable section to reveal sales transaction history.
 
-## Getting Started
-
-### 1. Backend Setup
-
-Ensure the Node.js backend server is running. Refer to the `backend/README.md` (or the `GEMINI.md` in the root for details) for setup instructions, including installing dependencies and starting the server.
-
-**Important:** Remember to configure your `.env` file in the `backend` directory with your `JWT_SECRET` and Ethereal email credentials for notifications.
-
-### 2. Frontend Setup
-
-1.  **Navigate to the project root:**
-    ```bash
-    cd /path/to/your/lung_chaing_farm
-    ```
-2.  **Get dependencies:**
-    ```bash
-    flutter pub get
-    ```
-3.  **Ensure `ApiService.baseUrl` is correct:**
-    *   Open `lib/services/api_service.dart`.
-    *   Verify `static const String baseUrl = 'http://localhost:3000';` (for web development).
-    *   For Android emulator, use `http://10.0.2.2:3000`.
-    *   For a physical device, use your machine's network IP (e.g., `http://192.168.1.X:3000`).
-
-### 3. Running the Application
-
-*   **For Web:**
-    ```bash
-    flutter run -d web-server
-    ```
-*   **For Android:**
-    ```bash
-    flutter run
-    ```
-    (Ensure an emulator is running or a device is connected).
-
 ## Project Structure
 
 The project follows a modular structure:
