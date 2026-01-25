@@ -5,8 +5,11 @@ const fs = require('fs');
 const sqlite3 = require('sqlite3').verbose();
 const app = require('../server'); // Import the Express app
 
-// Mock JWT_SECRET for testing
+// Mock JWT_SECRET and other environment variables for testing
 process.env.JWT_SECRET = 'test_secret';
+process.env.REFRESH_TOKEN_SECRET = 'test_refresh_secret';
+process.env.ACCESS_TOKEN_SECRET_EXPIRATION = '15m';
+process.env.REFRESH_TOKEN_SECRET_EXPIRATION = '7d';
 
 describe('API Endpoints', () => {
     let db;
@@ -39,70 +42,60 @@ describe('API Endpoints', () => {
         });
     });
 
-    beforeEach((done) => {
+    beforeEach(async () => {
         // Clear data and create fresh users/products for each test
-        db.serialize(() => {
-            db.run('DELETE FROM users');
-            db.run('DELETE FROM products');
-            db.run('DELETE FROM product_images');
-            db.run('DELETE FROM transactions', (err) => {
-                if (err) return done(err);
-
-                // Register a test user (buyer)
-                request(app)
-                    .post('/auth/register')
-                    .send({ email: 'test@user.com', password: 'password', role: 'USER' })
-                    .expect(201)
-                    .end((err, res) => {
-                        if (err) return done(err);
-                        testUserId = res.body.id;
-                        // Login to get token
-                        request(app)
-                            .post('/auth/login')
-                            .send({ email: 'test@user.com', password: 'password' })
-                            .expect(200)
-                            .end((err, res) => {
-                                if (err) return done(err);
-                                testUserToken = res.body.token;
-
-                                // Register a test villager (seller)
-                                request(app)
-                                    .post('/auth/register')
-                                    .send({ email: 'test@villager.com', password: 'password', role: 'VILLAGER', farm_name: 'Test Farm' })
-                                    .expect(201)
-                                    .end((err, res) => {
-                                        if (err) return done(err);
-                                        testVillagerId = res.body.id;
-                                        // Login to get token
-                                        request(app)
-                                            .post('/auth/login')
-                                            .send({ email: 'test@villager.com', password: 'password' })
-                                            .expect(200)
-                                            .end((err, res) => {
-                                                if (err) return done(err);
-                                                testVillagerToken = res.body.token;
-
-                                                // Add a product for the test villager
-                                                request(app)
-                                                    .post('/products')
-                                                    .set('Authorization', `Bearer ${testVillagerToken}`)
-                                                    .field('name', 'Test Product')
-                                                    .field('price', 10.0)
-                                                    .field('stock', 100.0)
-                                                    .field('category', 'Sweet')
-                                                    .field('low_stock_threshold', 10.0)
-                                                    .expect(201)
-                                                    .end((err, res) => {
-                                                        if (err) return done(err);
-                                                        testProductId = res.body.id;
-                                                        done();
-                                                    });
-                                            });
-                                    });
-                            });
-                    });
+        await new Promise((resolve, reject) => {
+            db.serialize(() => {
+                db.run('DELETE FROM users');
+                db.run('DELETE FROM products');
+                db.run('DELETE FROM product_images');
+                db.run('DELETE FROM transactions');
+                db.run('DELETE FROM refresh_tokens', (err) => { // Clear refresh tokens too
+                    if (err) return reject(err);
+                    resolve();
+                });
             });
         });
+
+        // Register a test user (buyer)
+        const userRegisterRes = await request(app)
+            .post('/auth/register')
+            .send({ email: 'test@user.com', password: 'password', role: 'USER' })
+            .expect(201);
+        testUserId = userRegisterRes.body.id;
+
+        // Login to get token
+        const userLoginRes = await request(app)
+            .post('/auth/login')
+            .send({ email: 'test@user.com', password: 'password' })
+            .expect(200);
+        testUserToken = userLoginRes.body.accessToken; // Access token is now in accessToken field
+
+        // Register a test villager (seller)
+        const villagerRegisterRes = await request(app)
+            .post('/auth/register')
+            .send({ email: 'test@villager.com', password: 'password', role: 'VILLAGER', farm_name: 'Test Farm' })
+            .expect(201);
+        testVillagerId = villagerRegisterRes.body.id;
+
+        // Login to get token
+        const villagerLoginRes = await request(app)
+            .post('/auth/login')
+            .send({ email: 'test@villager.com', password: 'password' })
+            .expect(200);
+        testVillagerToken = villagerLoginRes.body.accessToken; // Access token is now in accessToken field
+
+        // Add a product for the test villager
+        const productAddRes = await request(app)
+            .post('/products')
+            .set('Authorization', `Bearer ${testVillagerToken}`)
+            .field('name', 'Test Product')
+            .field('price', 10.0)
+            .field('stock', 100.0)
+            .field('category', 'Sweet')
+            .field('low_stock_threshold', 10.0)
+            .expect(201);
+        testProductId = productAddRes.body.id;
     });
 
     after((done) => {
@@ -115,6 +108,77 @@ describe('API Endpoints', () => {
                 if (err) return done(err);
                 db.close(done);
             });
+        });
+    });
+
+    describe('POST /auth/login', () => {
+        it('should return accessToken and set refreshToken cookie on successful login', (done) => {
+            request(app)
+                .post('/auth/login')
+                .send({ email: 'test@user.com', password: 'password' })
+                .expect(200)
+                .end((err, res) => {
+                    if (err) return done(err);
+
+                    assert.ok(res.body.accessToken, 'Should return an access token');
+                    assert.ok(res.headers['set-cookie'], 'Should set a Set-Cookie header');
+                    const refreshTokenCookie = res.headers['set-cookie'].find(cookie => cookie.startsWith('refreshToken='));
+                    assert.ok(refreshTokenCookie, 'Should set a refreshToken cookie');
+                    assert.ok(refreshTokenCookie.includes('HttpOnly'), 'Refresh token cookie should be HttpOnly');
+                    assert.ok(refreshTokenCookie.includes('Secure'), 'Refresh token cookie should be Secure');
+                    // Check maxAge and sameSite if needed for strictness
+
+                    const refreshTokenValue = refreshTokenCookie.split(';')[0].split('refreshToken=')[1];
+                    const decodedRefreshToken = require('jsonwebtoken').decode(refreshTokenValue); // Decode to get jti
+                    assert.ok(decodedRefreshToken.jti, 'Refresh token should have a jti');
+
+                    db.get('SELECT token_hash, jti FROM refresh_tokens WHERE user_id = ?', [testUserId], (dbErr, row) => {
+                        if (dbErr) return done(dbErr);
+                        assert.ok(row, 'Refresh token should be stored in the database');
+                        assert.strictEqual(row.jti, decodedRefreshToken.jti, 'Stored jti should match decoded jti');
+
+                        const crypto = require('crypto');
+                        const hashedRefreshToken = crypto.createHash('sha256').update(refreshTokenValue).digest('hex');
+                        assert.strictEqual(row.token_hash, hashedRefreshToken, 'Stored token_hash should match hashed refresh token');
+                        done();
+                    });
+                });
+        });
+
+        it('should return 401 for unmatched email or password', (done) => {
+            request(app)
+                .post('/auth/login')
+                .send({ email: 'wrong@user.com', password: 'password' })
+                .expect(401)
+                .end((err, res) => {
+                    if (err) return done(err);
+                    assert.strictEqual(res.body.error, 'Unmatched email or password.');
+                    done();
+                });
+        });
+
+        it('should return 401 for invalid credentials', (done) => {
+            request(app)
+                .post('/auth/login')
+                .send({ email: 'test@user.com', password: 'wrongpassword' })
+                .expect(401)
+                .end((err, res) => {
+                    if (err) return done(err);
+                    assert.strictEqual(res.body.error, 'Invalid credentials.');
+                    done();
+                });
+        });
+
+        it('should return 400 if email or password are missing', (done) => {
+            request(app)
+                .post('/auth/login')
+                .send({ email: 'test@user.com' })
+                .expect(400)
+                .end((err, res) => {
+                    if (err) return done(err);
+                    assert.strictEqual(res.body.error, 'Email and password are required.');
+                    done();
+                });
         });
     });
 

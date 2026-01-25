@@ -5,6 +5,7 @@ const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
 const cors = require('cors');
 const multer = require('multer');
+const cookieParser = require('cookie-parser');
 const path = require('path');
 const fs = require('fs');
 const bcrypt = require('bcryptjs');
@@ -24,12 +25,39 @@ const hashToken = (token) => {
   return crypto.createHash('sha256').update(token).digest('hex');
 };
 
+// Helper function to convert expiration string (e.g., '15m', '7d') to seconds
+const convertExpiresInToSeconds = (expiresInString) => {
+  const value = parseInt(expiresInString);
+  if (expiresInString.endsWith('m')) {
+    return value * 60;
+  } else if (expiresInString.endsWith('h')) {
+    return value * 60 * 60;
+  } else if (expiresInString.endsWith('d')) {
+    return value * 24 * 60 * 60;
+  }
+  return value; // Assume it's already in seconds if no unit
+};
+
+// Helper function to convert expiration string (e.g., '15m', '7d') to seconds
+const convertExpiresInToSeconds = (expiresInString) => {
+  const value = parseInt(expiresInString);
+  if (expiresInString.endsWith('m')) {
+    return value * 60;
+  } else if (expiresInString.endsWith('h')) {
+    return value * 60 * 60;
+  } else if (expiresInString.endsWith('d')) {
+    return value * 24 * 60 * 60;
+  }
+  return value; // Assume it's already in seconds if no unit
+};
+
 const app = express();
 const port = 3000;
 
 // Use CORS for all origins, as requested.
 app.use(cors());
 app.use(express.json());
+app.use(cookieParser());
 
 // --- Database Setup ---
 const dbPath = path.resolve(__dirname, 'database.db');
@@ -216,8 +244,40 @@ app.post('/auth/login', (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials.' });
     }
 
-    const token = jwt.sign({ email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '1h' });
-    res.json({ token, user: { farm_name: user.farm_name } });
+    // Generate short-lived Access Token
+    const accessToken = jwt.sign({ email: user.email, role: user.role }, JWT_SECRET, { expiresIn: process.env.ACCESS_TOKEN_SECRET_EXPIRATION || '15m' });
+
+    // Generate long-lived Refresh Token with jti
+    const jti = generateJti();
+    const refreshTokenExpiresIn = process.env.REFRESH_TOKEN_SECRET_EXPIRATION || '7d';
+    const refreshToken = jwt.sign({ email: user.email, role: user.role, jti: jti }, REFRESH_TOKEN_SECRET, { expiresIn: refreshTokenExpiresIn });
+
+    // Hash Refresh Token for storage
+    const hashedRefreshToken = hashToken(refreshToken);
+    // Calculate expiration in seconds for database storage
+    const refreshTokenExpiresAt = Math.floor(Date.now() / 1000) + convertExpiresInToSeconds(refreshTokenExpiresIn);
+    const currentTime = Math.floor(Date.now() / 1000);
+
+    // Store Refresh Token details in the database
+    db.run(
+      'INSERT INTO refresh_tokens (user_id, token_hash, jti, expires_at, created_at) VALUES (?, ?, ?, ?, ?)',
+      [user.id, hashedRefreshToken, jti, refreshTokenExpiresAt, currentTime],
+      (insertErr) => {
+        if (insertErr) {
+          console.error('Error storing refresh token:', insertErr.message);
+          return res.status(500).json({ error: 'Failed to store refresh token.' });
+        }
+
+        // Set Refresh Token as an HttpOnly, Secure cookie
+        res.cookie('refreshToken', refreshToken, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production', // Use secure cookies in production
+          maxAge: convertExpiresInToSeconds(refreshTokenExpiresIn) * 1000, // Convert to milliseconds
+          sameSite: 'Lax', // Protect against CSRF attacks
+        });
+        res.json({ accessToken, user: { farm_name: user.farm_name } });
+      }
+    );
   });
 });
 
