@@ -48,7 +48,7 @@ class AuthWrapper extends StatelessWidget {
     return Consumer<AuthProvider>(
       builder: (context, authProvider, child) {
         if (authProvider.isAuthenticated) {
-          if (authProvider.user!.role == 'VILLAGER') {
+          if (authProvider.user != null && authProvider.user!.role == 'VILLAGER') {
             return const VillagerDashboardScreen();
             // } else if (authProvider.user!.role == 'USER') {
             // return const UserHomeScreen(); // Placeholder for now

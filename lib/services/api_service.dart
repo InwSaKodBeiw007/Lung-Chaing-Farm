@@ -74,7 +74,7 @@ class ApiService {
       final Map<String, dynamic> decodedToken = JwtDecoder.decode(token);
 
       final int? id = decodedToken['id'] as int?;
-      final String? role = decodedToken['role'] as String?;
+      final String? role = decodedToken['role']?.toString();
       final String? farmName = responseData['user']['farm_name'] as String?;
 
       setAuthToken(token); // Store the token
@@ -121,7 +121,7 @@ class ApiService {
       final Map<String, dynamic> decodedToken = JwtDecoder.decode(token);
 
       final int? id = decodedToken['id'] as int?;
-      final String? decodedRole = decodedToken['role'] as String?;
+      final String? decodedRole = decodedToken['role']?.toString();
 
       setAuthToken(token); // Store the token
 
@@ -413,7 +413,7 @@ class ApiService {
       final Map<String, dynamic> decodedToken = JwtDecoder.decode(token);
       final int? id = decodedToken['id'] as int?;
       final String? email = decodedToken['email'] as String?;
-      final String? role = decodedToken['role'] as String?;
+      final String? role = decodedToken['role']?.toString();
       final String? farmName = decodedToken['farm_name'] as String?; // Assuming farm_name is in token payload
 
       if (id != null && email != null && role != null) {

@@ -34,7 +34,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (mounted) {
         Navigator.of(context).pop();
       }
-    } catch (e) {
+    } catch (e, st) {
       NotificationService.showSnackBar(
         'Failed to login: ${e.toString()}',
         isError: true,
