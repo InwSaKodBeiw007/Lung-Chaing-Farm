@@ -49,6 +49,29 @@ This document outlines the phased implementation plan for the One-Page Marketpla
 - The initial approach of modifying `api.test.js` directly for auth tests was abandoned in favor of creating a separate `auth_login.test.js` file for better modularity and isolation.
 - Significant time was spent on debugging and refactoring backend tests due to the complexities of asynchronous operations and shared test context.
 
+### Phase 3: Frontend - `Product` Model and `ApiService` Updates
+
+**Date:** Sunday, January 25, 2026
+
+**Actions Taken:**
+- Confirmed that `lib/models/product.dart` already includes the `String category` field, and its `fromJson` and `toJson` methods correctly handle this field.
+- Modified `lib/services/api_service.dart`'s `getProducts` method to accept an optional `String? category` parameter and pass it as a query parameter to the backend API.
+- Created `test/services/api_service_test.dart` to unit test the `ApiService`, verifying `getProducts` with and without the `category` parameter.
+- Created `test/models/product_test.dart` to unit test the `Product` model, ensuring correct serialization and deserialization of the `category` field.
+- Ran `dart fix --apply`, `flutter analyze`, and `flutter test` to ensure code quality and correctness. All tests passed.
+- Ran `dart format .` to maintain consistent code formatting.
+
+**Learnings:**
+- Always verify existing code for planned changes to avoid redundant work.
+- The test setup and mocking patterns in `low_stock_provider_test.dart` were highly valuable for creating new unit tests.
+- Forgetting a simple import (`dart:convert`) can lead to compilation errors in tests.
+
+**Surprises:**
+- The `category` field was already present in `Product` model, simplifying this phase.
+
+**Deviations from Plan:**
+- None. The plan was followed with adjustments for existing code.
+
 ---
 
 ## Phase 0: Setup and Initial Verification
@@ -96,16 +119,16 @@ This document outlines the phased implementation plan for the One-Page Marketpla
 
 **Objective:** Update the `Product` model to include the `category` and modify `ApiService` to use the new filtered API.
 
-*   [ ] Modify `lib/models/product.dart` to include a `String category` field.
-*   [ ] Update the `fromJson` and `toJson` methods in `Product` model to handle the new `category` field.
-*   [ ] Modify `lib/services/api_service.dart`'s `fetchProducts` method to accept an optional `String? category` parameter and pass it to the backend API.
-*   [ ] Create/modify unit tests for the `Product` model and `ApiService` (e.g., mock API responses with categories and verify parsing).
-*   [ ] Run the dart_fix tool to clean up the code.
-*   [ ] Run the analyze_files tool one more time and fix any issues.
-*   [ ] Run any tests to make sure they all pass.
-*   [ ] Run dart_format to make sure that the formatting is correct.
-*   [ ] Re-read the MODIFICATION_IMPLEMENTATION.md file to see what, if anything, has changed in the implementation plan, and if it has changed, take care of anything the changes imply.
-*   [ ] Update the MODIFICATION_IMPLEMENTATION.md file with the current state, including any learnings, surprises, or deviations in the Journal section. Check off any checkboxes of items that has been completed.
+*   [x] Modify `lib/models/product.dart` to include a `String category` field.
+*   [x] Update the `fromJson` and `toJson` methods in `Product` model to handle the new `category` field.
+*   [x] Modify `lib/services/api_service.dart`'s `fetchProducts` method to accept an optional `String? category` parameter and pass it to the backend API.
+*   [x] Create/modify unit tests for the `Product` model and `ApiService` (e.g., mock API responses with categories and verify parsing).
+*   [x] Run the dart_fix tool to clean up the code.
+*   [x] Run the analyze_files tool one more time and fix any issues.
+*   [x] Run any tests to make sure they all pass.
+*   [x] Run dart_format to make sure that the formatting is correct.
+*   [x] Re-read the MODIFICATION_IMPLEMENTATION.md file to see what, if anything, has changed in the implementation plan, and if it has changed, take care of anything the changes imply.
+*   [x] Update the MODIFICATION_IMPLEMENTATION.md file with the current state, including any learnings, surprises, or deviations in the Journal section. Check off any checkboxes of items that has been completed.
 *   [ ] Use `git diff` to verify the changes that have been made, and create a suitable commit message for any changes, following any guidelines you have about commit messages. Be sure to properly escape dollar signs and backticks, and present the change message to the user for approval.
 *   [ ] Wait for approval. Don't commit the changes or move on to the next phase of implementation until the user approves the commit.
 *   [ ] After commiting the change, if an app is running, use the hot_reload tool to reload it.
