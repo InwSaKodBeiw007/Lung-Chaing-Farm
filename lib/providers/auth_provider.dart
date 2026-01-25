@@ -20,37 +20,34 @@ class AuthProvider with ChangeNotifier {
 
   Future<void> _loadUserFromStorage() async {
     final prefs = await SharedPreferences.getInstance();
-    final userData = prefs.getString('userData');
-    if (userData != null) {
-      final decoded = json.decode(userData) as Map<String, dynamic>;
-      _user = User.fromJson(decoded['user']);
-      _token = decoded['token'];
-      ApiService.instance.setAuthToken(_token);
-      notifyListeners();
+    final token = prefs.getString('jwt_token');
+
+    if (token != null) {
+      final user = await ApiService.instance.loadUserFromToken(token);
+      if (user != null) {
+        _user = user;
+        _token = user.token; // User object now contains the token
+        ApiService.instance.setAuthToken(_token);
+        notifyListeners();
+      } else {
+        // Token was invalid or expired, clear it from storage
+        await prefs.remove('jwt_token');
+      }
     }
   }
 
-  Future<void> _saveUserToStorage(User user, String token) async {
+  Future<void> _saveUserToStorage(User user) async {
     final prefs = await SharedPreferences.getInstance();
-    final userData = json.encode({
-      'token': token,
-      'user': {
-        'id': user.id,
-        'email': user.email,
-        'role': user.role,
-        'farm_name': user.farmName,
-      },
-    });
-    await prefs.setString('userData', userData);
+    await prefs.setString('userData', json.encode(user.toJson()));
   }
 
   Future<void> login(String email, String password) async {
     try {
-      final response = await ApiService.instance.login(email, password);
-      _user = User.fromJson(response['user']);
-      _token = response['token'];
+      final user = await ApiService.instance.login(email, password);
+      _user = user;
+      _token = user.token;
       ApiService.instance.setAuthToken(_token);
-      await _saveUserToStorage(_user!, _token!);
+      await _saveUserToStorage(_user!);
       notifyListeners();
     } on ApiException catch (e) {
       if (e.statusCode == 401 || e.statusCode == 403) {
@@ -60,7 +57,7 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
-  Future<void> register({
+  Future<User> register({
     required String email,
     required String password,
     required String role,
@@ -69,7 +66,7 @@ class AuthProvider with ChangeNotifier {
     String? contactInfo,
   }) async {
     try {
-      await ApiService.instance.register(
+      final user = await ApiService.instance.register(
         email: email,
         password: password,
         role: role,
@@ -77,8 +74,12 @@ class AuthProvider with ChangeNotifier {
         address: address,
         contactInfo: contactInfo,
       );
-      // Automatically log in the user after successful registration
-      await login(email, password);
+      _user = user;
+      _token = user.token;
+      ApiService.instance.setAuthToken(_token);
+      await _saveUserToStorage(_user!);
+      notifyListeners();
+      return user;
     } on ApiException catch (e) {
       if (e.statusCode == 401 || e.statusCode == 403) {
         throw Exception('Permission denied or invalid credentials.');

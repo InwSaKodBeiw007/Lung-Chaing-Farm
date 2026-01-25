@@ -55,7 +55,7 @@ class _VillagerDashboardScreenState extends State<VillagerDashboardScreen> {
 
             final String? userToken = authProvider.token;
             if (userToken != null) {
-              lowStockProvider.fetchLowStockProducts(userToken);
+              lowStockProvider.fetchLowStockProducts();
             } else {
               NotificationService.showSnackBar(
                 'Authentication token is missing. Please log in again.',
