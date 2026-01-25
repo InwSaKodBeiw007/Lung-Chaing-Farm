@@ -8,6 +8,7 @@ import 'package:lung_chaing_farm/services/notification_service.dart'; // Import 
 import 'package:lung_chaing_farm/services/api_service.dart'; // Import ApiService
 
 import 'package:lung_chaing_farm/screens/one_page_marketplace_screen.dart'; // Import OnePageMarketplaceScreen
+import 'package:lung_chaing_farm/screens/product_list_screen.dart'; // Import ProductListScreen
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -47,14 +48,20 @@ class AuthWrapper extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<AuthProvider>(
       builder: (context, authProvider, child) {
-        if (authProvider.isAuthenticated) {
-          if (authProvider.user != null && authProvider.user!.role == 'VILLAGER') {
-            return const VillagerDashboardScreen();
-            // } else if (authProvider.user!.role == 'USER') {
-            // return const UserHomeScreen(); // Placeholder for now
-          }
+        if (authProvider.isLoading) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
         }
-        // If not authenticated or role not handled, show the public product list
+
+        if (authProvider.isAuthenticated) {
+                    if (authProvider.user != null && authProvider.user!.role == 'VILLAGER') {
+                      return const VillagerDashboardScreen();
+                    } else if (authProvider.user != null && authProvider.user!.role == 'USER') {
+                      return ProductListScreen(); // Correct routing for USER
+                    }
+                  }
+                  // If not authenticated or role not handled, show the public product list
         return const OnePageMarketplaceScreen(); // Changed to OnePageMarketplaceScreen
       },
     );

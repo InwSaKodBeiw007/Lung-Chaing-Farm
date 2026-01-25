@@ -49,7 +49,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           MaterialPageRoute(builder: (context) => const LoginScreen()),
         );
       }
-    } catch (e, st) {
+    } catch (e) {
       NotificationService.showSnackBar(
         'Failed to register: ${e.toString()}',
         isError: true,

@@ -1,5 +1,4 @@
 // lib/providers/auth_provider.dart
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:lung_chaing_farm/models/user.dart';
@@ -9,36 +8,37 @@ import 'package:lung_chaing_farm/services/api_exception.dart'; // Import ApiExce
 class AuthProvider with ChangeNotifier {
   User? _user;
   String? _token;
+  bool _isLoading = true; // Added loading flag
 
   User? get user => _user;
   String? get token => _token;
   bool get isAuthenticated => _token != null;
+  bool get isLoading => _isLoading; // Getter for loading flag
 
   AuthProvider() {
     _loadUserFromStorage();
   }
 
   Future<void> _loadUserFromStorage() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('jwt_token');
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('jwt_token');
 
-    if (token != null) {
-      final user = await ApiService.instance.loadUserFromToken(token);
-      if (user != null) {
-        _user = user;
-        _token = user.token; // User object now contains the token
-        ApiService.instance.setAuthToken(_token);
-        notifyListeners();
-      } else {
-        // Token was invalid or expired, clear it from storage
-        await prefs.remove('jwt_token');
+      if (token != null) {
+        final user = await ApiService.instance.loadUserFromToken(token);
+        if (user != null) {
+          _user = user;
+          _token = user.token;
+          ApiService.instance.setAuthToken(_token);
+          notifyListeners();
+        } else {
+          await prefs.remove('jwt_token');
+        }
       }
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
-  }
-
-  Future<void> _saveUserToStorage(User user) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('userData', json.encode(user.toJson()));
   }
 
   Future<void> login(String email, String password) async {
@@ -47,7 +47,10 @@ class AuthProvider with ChangeNotifier {
       _user = user;
       _token = user.token;
       ApiService.instance.setAuthToken(_token);
-      await _saveUserToStorage(_user!);
+      final prefs = await SharedPreferences.getInstance();
+      if (_token != null) {
+        await prefs.setString('jwt_token', _token!);
+      }
       notifyListeners();
     } on ApiException catch (e) {
       if (e.statusCode == 401 || e.statusCode == 403) {
@@ -77,7 +80,10 @@ class AuthProvider with ChangeNotifier {
       _user = user;
       _token = user.token;
       ApiService.instance.setAuthToken(_token);
-      await _saveUserToStorage(_user!);
+      final prefs = await SharedPreferences.getInstance();
+      if (_token != null) {
+        await prefs.setString('jwt_token', _token!);
+      }
       notifyListeners();
       return user;
     } on ApiException catch (e) {
@@ -93,7 +99,7 @@ class AuthProvider with ChangeNotifier {
     _token = null;
     ApiService.instance.setAuthToken(null); // Clear token
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('userData');
+    await prefs.remove('jwt_token'); // Remove jwt_token
     notifyListeners();
   }
 }

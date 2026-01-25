@@ -28,17 +28,24 @@ void main() {
 
     group('login', () {
       test('should return a User object on successful login', () async {
-        final testToken = generateTestJwt(1, 'test@example.com', 'USER', 'Test Farm');
+        final testToken = generateTestJwt(
+          1,
+          'test@example.com',
+          'USER',
+          'Test Farm',
+        );
         final mockResponse = jsonEncode({
-          'token': testToken,
+          'accessToken': testToken,
           'user': {'farm_name': 'Test Farm'},
         });
 
-        when(mockClient.post(
-          Uri.parse('${ApiService.baseUrl}/auth/login'),
-          headers: anyNamed('headers'),
-          body: anyNamed('body'),
-        )).thenAnswer((_) async => http.Response(mockResponse, 200));
+        when(
+          mockClient.post(
+            Uri.parse('${ApiService.baseUrl}/auth/login'),
+            headers: anyNamed('headers'),
+            body: anyNamed('body'),
+          ),
+        ).thenAnswer((_) async => http.Response(mockResponse, 200));
 
         final user = await apiService.login('test@example.com', 'password');
 
@@ -48,20 +55,34 @@ void main() {
         expect(user.role, 'USER');
         expect(user.farmName, 'Test Farm');
         expect(user.token, testToken);
-        verify(mockClient.post(any, headers: anyNamed('headers'), body: anyNamed('body'))).called(1);
+        verify(
+          mockClient.post(
+            any,
+            headers: anyNamed('headers'),
+            body: anyNamed('body'),
+          ),
+        ).called(1);
       });
 
       test('should throw ApiException on failed login', () async {
         final mockErrorResponse = jsonEncode({'error': 'Invalid credentials'});
-        when(mockClient.post(
-          Uri.parse('${ApiService.baseUrl}/auth/login'),
-          headers: anyNamed('headers'),
-          body: anyNamed('body'),
-        )).thenAnswer((_) async => http.Response(mockErrorResponse, 401));
+        when(
+          mockClient.post(
+            Uri.parse('${ApiService.baseUrl}/auth/login'),
+            headers: anyNamed('headers'),
+            body: anyNamed('body'),
+          ),
+        ).thenAnswer((_) async => http.Response(mockErrorResponse, 401));
 
         expect(
           () => apiService.login('wrong@example.com', 'password'),
-          throwsA(isA<ApiException>().having((e) => e.message, 'message', 'Invalid credentials')),
+          throwsA(
+            isA<ApiException>().having(
+              (e) => e.message,
+              'message',
+              'Invalid credentials',
+            ),
+          ),
         );
       });
     });
@@ -160,16 +181,18 @@ void main() {
 
     group('register', () {
       test('should return a User object on successful registration', () async {
-        final testToken = generateTestJwt(2, 'new@example.com', 'VILLAGER', 'New Farm');
         final mockResponse = jsonEncode({
-          'token': testToken,
-        });
+          'id': 444,
+          'message': 'User registered successfully.',
+        }); // Simulate backend not returning a token for register
 
-        when(mockClient.post(
-          Uri.parse('${ApiService.baseUrl}/auth/register'),
-          headers: anyNamed('headers'),
-          body: anyNamed('body'),
-        )).thenAnswer((_) async => http.Response(mockResponse, 201));
+        when(
+          mockClient.post(
+            Uri.parse('${ApiService.baseUrl}/auth/register'),
+            headers: anyNamed('headers'),
+            body: anyNamed('body'),
+          ),
+        ).thenAnswer((_) async => http.Response(mockResponse, 201));
 
         final user = await apiService.register(
           email: 'new@example.com',
@@ -179,21 +202,29 @@ void main() {
         );
 
         expect(user, isA<User>());
-        expect(user.id, 2);
-        expect(user.email, 'new@example.com');
-        expect(user.role, 'VILLAGER');
-        expect(user.farmName, 'New Farm');
-        expect(user.token, testToken);
-        verify(mockClient.post(any, headers: anyNamed('headers'), body: anyNamed('body'))).called(1);
+        expect(user.id, null); // Expect null as no token is returned
+        expect(user.email, 'new@example.com'); // Email is passed directly
+        expect(user.role, null); // Expect null as no token is returned
+        expect(user.farmName, 'New Farm'); // FarmName is passed directly
+        expect(user.token, null); // Expect null as no token is returned
+        verify(
+          mockClient.post(
+            any,
+            headers: anyNamed('headers'),
+            body: anyNamed('body'),
+          ),
+        ).called(1);
       });
 
       test('should throw ApiException on failed registration', () async {
         final mockErrorResponse = jsonEncode({'error': 'Email already exists'});
-        when(mockClient.post(
-          Uri.parse('${ApiService.baseUrl}/auth/register'),
-          headers: anyNamed('headers'),
-          body: anyNamed('body'),
-        )).thenAnswer((_) async => http.Response(mockErrorResponse, 409));
+        when(
+          mockClient.post(
+            Uri.parse('${ApiService.baseUrl}/auth/register'),
+            headers: anyNamed('headers'),
+            body: anyNamed('body'),
+          ),
+        ).thenAnswer((_) async => http.Response(mockErrorResponse, 409));
 
         expect(
           () => apiService.register(
@@ -201,14 +232,25 @@ void main() {
             password: 'password',
             role: 'USER',
           ),
-          throwsA(isA<ApiException>().having((e) => e.message, 'message', 'Email already exists')),
+          throwsA(
+            isA<ApiException>().having(
+              (e) => e.message,
+              'message',
+              'Email already exists',
+            ),
+          ),
         );
       });
     });
 
     group('loadUserFromToken', () {
       test('should return User object for a valid token', () async {
-        final testToken = generateTestJwt(3, 'valid@example.com', 'USER', 'Valid Farm');
+        final testToken = generateTestJwt(
+          3,
+          'valid@example.com',
+          'USER',
+          'Valid Farm',
+        );
         final user = await apiService.loadUserFromToken(testToken);
 
         expect(user, isA<User>());
@@ -220,7 +262,12 @@ void main() {
       });
 
       test('should return null for an expired token', () async {
-        final expiredToken = generateExpiredTestJwt(4, 'expired@example.com', 'USER', 'Expired Farm');
+        final expiredToken = generateExpiredTestJwt(
+          4,
+          'expired@example.com',
+          'USER',
+          'Expired Farm',
+        );
         final user = await apiService.loadUserFromToken(expiredToken);
 
         expect(user, isNull);

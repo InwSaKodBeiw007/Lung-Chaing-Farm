@@ -5,7 +5,7 @@ import 'package:flutter/foundation.dart'; // Add this import
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:lung_chaing_farm/services/api_exception.dart'; // Import ApiException
 import 'package:lung_chaing_farm/models/user.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+
 
 class ApiService {
   // --- Singleton Pattern ---
@@ -41,8 +41,7 @@ class ApiService {
   // --- Configuration ---
   // Use 'http://10.0.2.2:3000' for Android emulator
   // Use 'http://localhost:3000' for web
-  static const String baseUrl =
-      'http://10.0.2.2:3000'; // Corrected for web development
+  static const String baseUrl = 'http://10.0.2.2:3000'; //for Android emulator
 
   // --- Header Management ---
   void setAuthToken(String? token) {
@@ -70,7 +69,7 @@ class ApiService {
     );
     if (response.statusCode == 200) {
       final responseData = json.decode(response.body);
-      final String token = responseData['token'];
+      final String token = responseData['accessToken'] ?? '';
       final Map<String, dynamic> decodedToken = JwtDecoder.decode(token);
 
       final int? id = decodedToken['id'] as int?;
@@ -80,7 +79,12 @@ class ApiService {
       setAuthToken(token); // Store the token
 
       return User(
-          id: id, email: email, farmName: farmName, role: role, token: token);
+        id: id,
+        email: email,
+        farmName: farmName,
+        role: role,
+        token: token,
+      );
     } else {
       final errorBody = json.decode(response.body);
       throw ApiException(
@@ -117,8 +121,10 @@ class ApiService {
 
     if (response.statusCode == 201) {
       final responseData = json.decode(response.body);
-      final String token = responseData['token'];
-      final Map<String, dynamic> decodedToken = JwtDecoder.decode(token);
+      final String? token = responseData['accessToken'];
+      final Map<String, dynamic> decodedToken = (token != null)
+          ? JwtDecoder.decode(token)
+          : {};
 
       final int? id = decodedToken['id'] as int?;
       final String? decodedRole = decodedToken['role']?.toString();
@@ -126,11 +132,12 @@ class ApiService {
       setAuthToken(token); // Store the token
 
       return User(
-          id: id,
-          email: email,
-          farmName: farmName,
-          role: decodedRole,
-          token: token);
+        id: id,
+        email: email,
+        farmName: farmName,
+        role: decodedRole,
+        token: token,
+      );
     } else {
       final errorBody = json.decode(response.body);
       throw ApiException(
@@ -414,10 +421,18 @@ class ApiService {
       final int? id = decodedToken['id'] as int?;
       final String? email = decodedToken['email'] as String?;
       final String? role = decodedToken['role']?.toString();
-      final String? farmName = decodedToken['farm_name'] as String?; // Assuming farm_name is in token payload
+      final String? farmName =
+          decodedToken['farm_name']
+              as String?; // Assuming farm_name is in token payload
 
       if (id != null && email != null && role != null) {
-        return User(id: id, email: email, role: role, farmName: farmName, token: token);
+        return User(
+          id: id,
+          email: email,
+          role: role,
+          farmName: farmName,
+          token: token,
+        );
       }
     } on FormatException {
       debugPrint('Malformed JWT: $token');
@@ -425,15 +440,5 @@ class ApiService {
     return null;
   }
 
-  // Helper to save token
-  Future<void> _saveToken(String token) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('jwt_token', token);
-  }
 
-  // Helper to get token
-  Future<String?> _getToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('jwt_token');
-  }
 }

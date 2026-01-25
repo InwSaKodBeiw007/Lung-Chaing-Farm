@@ -19,7 +19,9 @@ class _LowStockProductsScreenState extends State<LowStockProductsScreen> {
   @override
   void initState() {
     super.initState();
-    _fetchLowStockProducts();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _fetchLowStockProducts();
+    });
   }
 
   void _fetchLowStockProducts() {

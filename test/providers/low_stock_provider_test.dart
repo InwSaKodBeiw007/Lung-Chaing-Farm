@@ -119,8 +119,9 @@ void main() {
       );
       final mockProductsJson = [product1.toJson()];
 
-      when(mockApiService.getLowStockProducts())
-          .thenAnswer((_) async => mockProductsJson);
+      when(
+        mockApiService.getLowStockProducts(),
+      ).thenAnswer((_) async => mockProductsJson);
 
       await lowStockProvider.fetchLowStockProducts();
       expect(lowStockProvider.lowStockCount, 1);
