@@ -1,14 +1,10 @@
-// lib/widgets/product_card.dart
-import 'package:flutter/material.dart';
-import 'package:lung_chaing_farm/screens/auth/register_screen.dart'; // Import RegisterScreen
-import 'package:lung_chaing_farm/widgets/shared/image_gallery_swiper.dart'; // Import ImageGallerySwiper
-import 'package:intl/intl.dart'; // For date formatting
-import 'package:lung_chaing_farm/models/product.dart'; // Import Product model
 import 'package:lung_chaing_farm/screens/shared/product_detail_screen.dart'; // Import ProductDetailScreen
+import 'package:lung_chaing_farm/services/audio_service.dart'; // Import AudioService
+import 'package:lung_chaing_farm/widgets/quick_buy_modal.dart'; // Import QuickBuyModal
 
 class ProductCard extends StatelessWidget {
   final Product product;
-  final Function(int id, double currentStock) onSell;
+  final Function(Product product) onSell; // Modified to accept Product object
   final Function(int id) onDelete;
   final Function()? onEdit; // Add onEdit callback
   final String? userRole; // Add userRole here
@@ -47,6 +43,7 @@ class ProductCard extends StatelessWidget {
       margin: const EdgeInsets.all(8.0),
       child: InkWell(
         onTap: () {
+          AudioService.instance.playClickSound(); // Play sound on tap
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -113,7 +110,7 @@ class ProductCard extends StatelessWidget {
                                   ),
                                 );
                               } else {
-                                onSell(id, stock);
+                                onSell(product); // Pass the entire product object
                               }
                             }
                           : null,
