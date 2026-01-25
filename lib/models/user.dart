@@ -1,17 +1,17 @@
 // lib/models/user.dart
 class User {
   final int? id;
-  final String email;
+  final String? email;
   final String? role;
   final String? farmName;
   final String? token;
 
-  User({this.id, required this.email, this.role, this.farmName, this.token});
+  User({this.id, this.email, this.role, this.farmName, this.token});
 
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
       id: json['id'] as int?,
-      email: json['email'] as String,
+      email: json['email'] as String?,
       role: json['role'] as String?,
       farmName: json['farm_name'] as String?,
       token: json['token'] as String?,
