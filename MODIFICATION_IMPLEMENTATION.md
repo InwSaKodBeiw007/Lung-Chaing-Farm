@@ -24,6 +24,31 @@ This document outlines the phased implementation plan for the One-Page Marketpla
 - Instead of modifying the `CREATE TABLE` statement, the existing `ALTER TABLE ADD COLUMN` logic was adjusted.
 - An additional step was required to fix a `TypeError` in frontend tests before proceeding with backend modifications.
 
+### Phase 2: Backend - API Modification
+
+**Date:** Sunday, January 25, 2026
+
+**Actions Taken:**
+- Modified the `GET /products` endpoint in `backend/server.js` to accept an optional `category` query parameter and filter products accordingly. This involved dynamically constructing the SQL `WHERE` clause based on the presence of the `category` parameter.
+- Addressed persistent backend test failures, including `jti` assertion errors, timeouts, and `FATAL ERROR`s stemming from `sqlite3`. This required extensive debugging and refactoring of test setup and isolation.
+    - The `POST /auth/login` tests were moved to a dedicated `backend/test/auth_login.test.js` file for complete isolation, and their `beforeEach` and `it` block logic were refined to ensure correct `jti` verification against the database.
+    - The `ReferenceError: testProductId is not defined` and incorrect product count assertions in `api.test.js` were resolved by ensuring each `describe` block had its own comprehensive `beforeEach` setup for users, tokens, and products. This included specific setups for `/products/:productId/purchase`, `/villager/low-stock-products`, `/products/:productId/transactions`, and `/products` endpoints.
+    - The registration regression in `auth.test.js` (test `should not register a user with an existing email` failing with `expected 500, got 201`) was fixed by modifying the test case to first successfully register a user, then immediately attempt a duplicate registration *within the same test case* to correctly trigger and assert the expected `500 Internal Server Error` due to the unique email constraint.
+- All backend tests (`api.test.js` and `auth.test.js`) are now stable and passing.
+
+**Learnings:**
+- Robust test isolation is crucial for complex API interactions involving tokens and database state. Shared `beforeEach` setups can lead to cascading failures if not meticulously managed.
+- Asynchronous operations in test hooks (e.g., database insertions, API calls) must be properly handled with `async/await` or `done()` callbacks to prevent timeouts and unexpected test behavior.
+- Precise matching of `old_string` in `replace` tool is critical; subtle differences can lead to failure. In-memory replacement with `write_file` can be a more robust alternative for stubborn blocks.
+
+**Surprises:**
+- The degree of refactoring needed for backend tests was more extensive than initially anticipated, particularly around token management and database state in tests.
+- The default behavior of `npm test` running all `.js` files in `test/` directory, causing both `api.test.js` and `auth.test.js` to run together, helped in identifying cross-file test interaction issues.
+
+**Deviations from Plan:**
+- The initial approach of modifying `api.test.js` directly for auth tests was abandoned in favor of creating a separate `auth_login.test.js` file for better modularity and isolation.
+- Significant time was spent on debugging and refactoring backend tests due to the complexities of asynchronous operations and shared test context.
+
 ---
 
 ## Phase 0: Setup and Initial Verification
@@ -37,32 +62,32 @@ This document outlines the phased implementation plan for the One-Page Marketpla
 *   [x] Locate the SQLite database schema definition (likely in `backend/server.js` or a separate migration script if one exists).
 *   [x] Modify the `CREATE TABLE products` statement to include `category TEXT NOT NULL`.
 *   [x] Implement a migration strategy for existing databases to add the `category` column (e.g., using `ALTER TABLE ADD COLUMN` if there's existing data, or dropping and re-creating for development). For initial development, we can drop and recreate the table.
-*   [ ] Add default `category` values ('Vegetable' or 'Fruit') to existing product creation/seeding logic for testing purposes.
-*   [ ] Create/modify unit tests for verifying the database schema change (e.g., check if the `category` column exists and can be populated).
-*   [ ] Run the dart_fix tool to clean up the code.
-*   [ ] Run the analyze_files tool one more time and fix any issues.
-*   [ ] Run any tests to make sure they all pass.
-*   [ ] Run dart_format to make sure that the formatting is correct.
-*   [ ] Re-read the MODIFICATION_IMPLEMENTATION.md file to see what, if anything, has changed in the implementation plan, and if it has changed, take care of anything the changes imply.
-*   [ ] Update the MODIFICATION_IMPLEMENTATION.md file with the current state, including any learnings, surprises, or deviations in the Journal section. Check off any checkboxes of items that have been completed.
-*   [ ] Use `git diff` to verify the changes that have been made, and create a suitable commit message for any changes, following any guidelines you have about commit messages. Be sure to properly escape dollar signs and backticks, and present the change message to the user for approval.
-*   [ ] Wait for approval. Don't commit the changes or move on to the next phase of implementation until the user approves the commit.
-*   [ ] After commiting the change, if an app is running, use the hot_reload tool to reload it.
+*   [x] Add default `category` values ('Vegetable' or 'Fruit') to existing product creation/seeding logic for testing purposes.
+*   [x] Create/modify unit tests for verifying the database schema change (e.g., check if the `category` column exists and can be populated).
+*   [x] Run the dart_fix tool to clean up the code.
+*   [x] Run the analyze_files tool one more time and fix any issues.
+*   [x] Run any tests to make sure they all pass.
+*   [x] Run dart_format to make sure that the formatting is correct.
+*   [x] Re-read the MODIFICATION_IMPLEMENTATION.md file to see what, if anything, has changed in the implementation plan, and if it has changed, take care of anything the changes imply.
+*   [x] Update the MODIFICATION_IMPLEMENTATION.md file with the current state, including any learnings, surprises, or deviations in the Journal section. Check off any checkboxes of items that have been completed.
+*   [x] Use `git diff` to verify the changes that have been made, and create a suitable commit message for any changes, following any guidelines you have about commit messages. Be sure to properly escape dollar signs and backticks, and present the change message to the user for approval.
+*   [x] Wait for approval. Don't commit the changes or move on to the next phase of implementation until the user approves the commit.
+*   [x] After commiting the change, if an app is running, use the hot_reload tool to reload it.
 
 ## Phase 2: Backend - API Modification
 
 **Objective:** Modify the `GET /products` endpoint to support filtering by `category`.
 
-*   [ ] Locate the `GET /products` endpoint in `backend/server.js`.
-*   [ ] Modify the endpoint to accept an optional `category` query parameter.
-*   [ ] Implement the SQL `WHERE` clause dynamically based on the presence of the `category` parameter.
-*   [ ] Create/modify unit tests for the API endpoint to verify filtering functionality (e.g., `GET /products?category=Vegetable`).
+*   [x] Locate the `GET /products` endpoint in `backend/server.js`.
+*   [x] Modify the endpoint to accept an optional `category` query parameter.
+*   [x] Implement the SQL `WHERE` clause dynamically based on the presence of the `category` parameter.
+*   [x] Create/modify unit tests for the API endpoint to verify filtering functionality (e.g., `GET /products?category=Vegetable`).
 *   [ ] Run the dart_fix tool to clean up the code.
 *   [ ] Run the analyze_files tool one more time and fix any issues.
-*   [ ] Run any tests to make sure they all pass.
+*   [x] Run any tests to make sure they all pass.
 *   [ ] Run dart_format to make sure that the formatting is correct.
-*   [ ] Re-read the MODIFICATION_IMPLEMENTATION.md file to see what, if anything, has changed in the implementation plan, and if it has changed, take care of anything the changes imply.
-*   [ ] Update the MODIFICATION_IMPLEMENTATION.md file with the current state, including any learnings, surprises, or deviations in the Journal section. Check off any checkboxes of items that has been completed.
+*   [x] Re-read the MODIFICATION_IMPLEMENTATION.md file to see what, if anything, has changed in the implementation plan, and if it has changed, take care of anything the changes imply.
+*   [x] Update the MODIFICATION_IMPLEMENTATION.md file with the current state, including any learnings, surprises, or deviations in the Journal section. Check off any checkboxes of items that has been completed.
 *   [ ] Use `git diff` to verify the changes that have been made, and create a suitable commit message for any changes, following any guidelines you have about commit messages. Be sure to properly escape dollar signs and backticks, and present the change message to the user for approval.
 *   [ ] Wait for approval. Don't commit the changes or move on to the next phase of implementation until the user approves the commit.
 *   [ ] After commiting the change, if an app is running, use the hot_reload tool to reload it.
@@ -110,7 +135,7 @@ This document outlines the phased implementation plan for the One-Page Marketpla
 
 *   [ ] Modify `lib/widgets/product_card.dart` to properly display the `category` and `price_per_kg` (if not already handled).
 *   [ ] Implement tap interaction on `ProductCard` to play `click.mp3` using `AudioService`.
-*   [ ] Implement a "Quick Buy Modal" (`showDialog` or `showModalBottomSheet`) that appears on `ProductCard` tap.
+*   [ ] Implement a "Quick Buy Modal" (`showDialog` or `showModalBottomSheet`) that appears on `ProductCard` tap for authenticated `USER` roles. For `VISITOR` roles, tapping a product should navigate to the login page.
 *   [ ] Create/modify widget tests for `ProductCard` interactions.
 *   [ ] Run the dart_fix tool to clean up the code.
 *   [ ] Run the analyze_files tool one more time and fix any issues.
