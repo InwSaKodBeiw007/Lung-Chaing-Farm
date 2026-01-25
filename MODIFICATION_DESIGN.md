@@ -1,212 +1,211 @@
-# Modification Design Document: One-Page Marketplace Application
+# MODIFICATION DESIGN DOCUMENT: Fixing "null is not number" in Authentication
 
 ## 1. Overview
 
-This document outlines the design for implementing a new "One-Page Marketplace Application" within the existing Flutter project, targeting web and mobile platforms. The primary goal is to create an engaging landing page for visitors and potentially regular users (buyers) to browse agricultural products. This new feature will replace the existing `ProductListScreen` as the default view for unauthenticated users, providing a richer, more interactive experience. The design covers necessary backend modifications (database schema and API) and comprehensive frontend development, adhering to a minimalist e-commerce style with specific UI elements and interactions.
+This document outlines the design to resolve a "null is not number" error occurring during user registration and login in the Lung Chaing Farm Flutter application. The problem is identified as a likely failure to correctly decode the JSON Web Token (JWT) received from the backend API and extract the `id` and `role` fields, which are crucial for client-side logic, as indicated in the `GEMINI.md` project overview. The proposed solution involves integrating a `jwt_decoder` package to parse the JWT and update the `User` model and `AuthProvider` with the extracted `id` and `role`.
 
-## 2. Detailed Analysis of the Goal or Problem
+## 2. Detailed Analysis of the Goal/Problem
 
-The current application structure uses `ProductListScreen` as the default entry point for unauthenticated users. This screen is functional but lacks the dynamic, feature-rich presentation desired for a modern e-commerce marketplace. The goal is to transform this into a visually appealing and highly usable one-page experience that highlights products, categorizes them, and encourages interaction.
+The `GEMINI.md` document explicitly states under "Secure Authentication": "The login API now returns a token and a minimal user object (`{ farm_name: user.farm_name }`). This design choice requires the client-side application to decode the JWT to retrieve the user's `id` and `role` for its logic and UI, which adds a layer of client-side complexity but reduces redundancy in the initial API response."
 
-**Key problems addressed by this modification:**
-
-*   **Limited User Experience for Visitors:** The current `ProductListScreen` is basic and does not effectively showcase products or provide an inviting entry point.
-*   **Lack of Product Categorization:** Products are currently displayed in a flat list, without clear separation between categories like "Vegetables" and "Fruits."
-*   **Static Content Presentation:** No dedicated "Hero Section" or dynamic product sections.
-*   **No Quick Buy Interaction:** The user experience lacks immediate feedback and quick purchase options for product selection.
-*   **Backend Support for Categorization:** The existing backend API does not support filtering products by category, which is essential for the new UI.
+However, a review of the `MODIFICATION_IMPLEMENTATION.md` for the `feature/one-page-marketplace` branch does not show any explicit steps for implementing this client-side JWT decoding and extraction of `id` and `role`. The "null is not number" error strongly suggests that a part of the application is attempting to use `id` or `role` (expected to be numeric) from a `User` object where these fields are still `null`, because they were never properly extracted from the JWT. This is critical as the `id` and `role` are fundamental for role-based access control and user-specific functionality throughout the application.
 
 ## 3. Alternatives Considered
 
-### Alternative 1: Create a Separate Flutter Web Project
-
-*   **Pros:** Complete separation of concerns, potentially simpler to develop independently.
-*   **Cons:** Duplication of code (models, services), complex integration with the existing mobile app (if needed), maintaining two separate codebases.
-
-### Alternative 2: Integrate as a New Route within the Existing `AuthWrapper`
-
-*   **Pros:** Allows for a distinct URL/route for the one-page.
-*   **Cons:** Still requires deciding when to route to it (e.g., for specific roles), adding complexity to the existing `AuthWrapper` logic if not replacing an existing screen.
-
-**Chosen Approach:**
-The chosen approach is to **replace the `ProductListScreen` with the new One-Page Marketplace application for unauthenticated users.** This integrates the new functionality seamlessly into the existing application flow without introducing unnecessary routing complexity or code duplication. It directly addresses the need for an improved landing experience for visitors. For authenticated `USER` roles, this new one-page will also serve as their primary product browsing interface, aligning with the marketplace concept.
+*   **Modify Backend to Return Full User Object:** One alternative would be to modify the backend API to return the full user object, including `id` and `role`, directly in the login/registration response. This would simplify the frontend logic. However, this contradicts the stated "design choice" in `GEMINI.md` to keep the API response minimal and perform JWT decoding on the client for reduced redundancy. Adhering to the existing design principles is preferred unless a significant blocker is encountered. Therefore, this alternative is rejected.
 
 ## 4. Detailed Design for the Modification
 
-The modification will involve significant changes across the backend and frontend.
+The design focuses on implementing the missing client-side JWT decoding and integrating the extracted `id` and `role` into the application's state management.
 
-### 4.1 Backend Modifications
+### 4.1. Add `jwt_decoder` Package
 
-**Objective:** To enable product categorization and filtering by category.
+The `jwt_decoder` package (`https://pub.dev/packages/jwt_decoder`) will be added to the `pubspec.yaml` as a dependency. This package provides a simple and reliable way to decode JWTs in Dart.
 
-#### 4.1.1 Database Schema Modification
+### 4.2. Update `User` Model (`lib/models/user.dart`)
 
-The `products` table in the SQLite database needs to be updated to include a `category` field.
+The `User` model will be updated to include `id` (as an `int`) and `role` (as a `String`). These fields will be made nullable initially (`int? id`, `String? role`) to gracefully handle cases where they might not be present (e.g., during initial unauthenticated states or if the token lacks these claims). The `fromJson` factory will be updated to parse these fields from the JWT payload.
 
-**Before:**
+```dart
+// lib/models/user.dart
+class User {
+  final int? id; // New field
+  final String email;
+  final String farmName;
+  final String? role; // New field
 
-```sql
-CREATE TABLE products (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    price REAL NOT NULL,
-    stock INTEGER NOT NULL,
-    low_stock_threshold INTEGER NOT NULL,
-    owner_id INTEGER,
-    low_stock_since_date INTEGER,
-    FOREIGN KEY (owner_id) REFERENCES users (id)
-);
+  User({this.id, required this.email, required this.farmName, this.role});
+
+  factory User.fromJson(Map<String, dynamic> json) {
+    return User(
+      id: json['id'] as int?,
+      email: json['email'] as String,
+      farmName: json['farm_name'] as String,
+      role: json['role'] as String?,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'email': email,
+      'farm_name': farmName,
+      'role': role,
+    };
+  }
+}
 ```
 
-**After:**
+### 4.3. Implement JWT Decoding and User Object Creation in `ApiService` and `AuthProvider`
 
-```sql
-CREATE TABLE products (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    price REAL NOT NULL,
-    stock INTEGER NOT NULL,
-    category TEXT NOT NULL, -- New field: e.g., 'Vegetable', 'Fruit'
-    low_stock_threshold INTEGER NOT NULL,
-    owner_id INTEGER,
-    low_stock_since_date INTEGER,
-    FOREIGN KEY (owner_id) REFERENCES users (id)
-);
+The core logic for decoding the JWT and updating the `User` object will reside primarily in `ApiService` and `AuthProvider`.
+
+#### `ApiService` (`lib/services/api_service.dart`)
+
+The `login` and `register` methods in `ApiService` will be modified. After successfully receiving a `token` from the backend, these methods will:
+1.  Decode the JWT using `JwtDecoder.decode()`.
+2.  Extract the `id` and `role` from the decoded JWT payload.
+3.  Return a `User` object that now includes the extracted `id`, `role`, along with the `email` (from login/register input) and `farmName` (from the minimal user object in the API response).
+
+```dart
+// lib/services/api_service.dart (conceptual changes)
+import 'package:jwt_decoder/jwt_decoder.dart';
+// ... other imports
+
+class ApiService {
+  // ... existing code
+
+  Future<User> login(String email, String password) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/auth/login'),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({'email': email, 'password': password}),
+    );
+
+    if (response.statusCode == 200) {
+      final responseData = json.decode(response.body);
+      final String token = responseData['token'];
+      final Map<String, dynamic> decodedToken = JwtDecoder.decode(token);
+
+      // Extract id and role from decoded token
+      final int? id = decodedToken['id'] as int?;
+      final String? role = decodedToken['role'] as String?;
+      final String farmName = responseData['user']['farm_name']; // From minimal user object
+
+      // Store token (e.g., using shared_preferences)
+      await _saveToken(token);
+
+      return User(id: id, email: email, farmName: farmName, role: role);
+    } else {
+      throw ApiException(json.decode(response.body)['message']);
+    }
+  }
+
+  Future<User> register(String email, String password, String farmName, String role) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/auth/register'),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({
+        'email': email,
+        'password': password,
+        'farm_name': farmName,
+        'role': role,
+      }),
+    );
+
+    if (response.statusCode == 201) {
+      final responseData = json.decode(response.body);
+      final String token = responseData['token'];
+      final Map<String, dynamic> decodedToken = JwtDecoder.decode(token);
+
+      // Extract id and role from decoded token
+      final int? id = decodedToken['id'] as int?;
+      final String? role = decodedToken['role'] as String?;
+
+      // Store token (e.g., using shared_preferences)
+      await _saveToken(token);
+
+      return User(id: id, email: email, farmName: farmName, role: role);
+    } else {
+      throw ApiException(json.decode(response.body)['message']);
+    }
+  }
+
+  // Helper to load user from stored token on app start or refresh
+  Future<User?> _loadUserFromToken() async {
+    final token = await _getToken();
+    if (token != null && !JwtDecoder.isExpired(token)) {
+      final Map<String, dynamic> decodedToken = JwtDecoder.decode(token);
+      final int? id = decodedToken['id'] as int?;
+      final String? email = decodedToken['email'] as String?; // Assuming email is also in token
+      final String? role = decodedToken['role'] as String?;
+
+      // We might need to fetch farm_name separately if it's not in the token
+      // For now, let's assume farm_name is not strictly needed for _loadUserFromToken initial setup
+      if (email != null && id != null && role != null) {
+        return User(id: id, email: email, farmName: 'Unknown Farm', role: role); // Placeholder farmName
+      }
+    }
+    return null;
+  }
+}
 ```
 
-**Mermaid Diagram: Updated `products` table**
+#### `AuthProvider` (`lib/providers/auth_provider.dart`)
+
+`AuthProvider` will be responsible for managing the authenticated `User` object across the application.
+1.  The `_user` field will be of type `User?`.
+2.  The `login` and `register` methods will call the respective `ApiService` methods, receive the fully populated `User` object, and set it to `_user`.
+3.  A method `checkAuthStatus` will be added or modified to attempt to load a user from a stored token on app startup, using `ApiService._loadUserFromToken()`.
+
+### 4.4. Error Handling
+
+*   **JWT Decoding Errors:** Wrap `JwtDecoder.decode()` calls in `try-catch` blocks to handle malformed tokens.
+*   **Missing Claims:** Handle cases where `id` or `role` might be missing from the decoded JWT payload by using nullable types (`int?`, `String?`) and providing default behavior or throwing specific exceptions.
+*   **API Exceptions:** Continue to use `ApiException` for backend-related errors.
+
+### 4.5. Usage of `id` and `role`
+
+All existing and future code that depends on `user.id` or `user.role` (e.g., for routing, UI rendering, authorization checks) will now access these properties from the `User` object available through `AuthProvider`. This ensures consistent and correctly populated data.
+
+## 5. Diagrams
+
+### Sequence Diagram: Enhanced Authentication Flow
 
 ```mermaid
-erDiagram
-    users ||--o{ products : "owns"
-    products {
-        INTEGER id PK
-        TEXT name
-        REAL price
-        INTEGER stock
-        TEXT category
-        INTEGER low_stock_threshold
-        INTEGER owner_id FK "users.id"
-        INTEGER low_stock_since_date NULL "Unix timestamp"
-    }
+sequenceDiagram
+    participant User
+    participant AppClient
+    participant ApiService
+    participant AuthProvider
+    participant BackendAPI
+    participant JWTDecoder
+
+    User->>AppClient: Initiates Login/Registration
+    AppClient->>AuthProvider: Calls login/register(email, password, ...)
+    AuthProvider->>ApiService: Calls login/register(email, password, ...)
+    ApiService->>BackendAPI: HTTP POST /auth/login or /auth/register
+    BackendAPI-->>ApiService: HTTP 200/201 (token, minimal user object)
+    ApiService->>JWTDecoder: Decode token
+    JWTDecoder-->>ApiService: Decoded Payload (contains id, role)
+    ApiService->>ApiService: Extract id, role, farm_name
+    ApiService->>ApiService: Save token locally
+    ApiService-->>AuthProvider: Returns User(id, email, farm_name, role)
+    AuthProvider->>AuthProvider: Sets current user (_user = User)
+    AuthProvider->>AppClient: Notifies listeners (user logged in)
+    AppClient->>User: Navigates to appropriate screen
 ```
 
-#### 4.1.2 API Modifications
+## 6. Summary
 
-The `GET /products` endpoint in `backend/server.js` needs to be modified to accept an optional `type` query parameter for filtering products by category.
+This design addresses the "null is not number" error by implementing robust client-side JWT decoding. It involves:
+1.  Adding the `jwt_decoder` package.
+2.  Updating the `User` model to include `id` and `role`.
+3.  Modifying `ApiService` to decode JWTs, extract `id` and `role`, and construct a complete `User` object.
+4.  Updating `AuthProvider` to manage this fully populated `User` object.
+5.  Ensuring proper error handling for JWT operations.
+This approach aligns with the existing design choice for client-side JWT processing and provides a stable foundation for role-based features.
 
-**Current `GET /products` (Conceptual):**
+## 7. References
 
-```javascript
-app.get('/products', (req, res) => {
-    db.all('SELECT * FROM products', [], (err, rows) => {
-        // ... send all products
-    });
-});
-```
-
-**Modified `GET /products` (Conceptual):**
-
-```javascript
-app.get('/products', (req, res) => {
-    const category = req.query.category; // e.g., 'Vegetable', 'Fruit'
-    let sql = 'SELECT * FROM products';
-    const params = [];
-
-    if (category) {
-        sql += ' WHERE category = ?';
-        params.push(category);
-    }
-
-    db.all(sql, params, (err, rows) => {
-        // ... send filtered or all products
-    });
-});
-```
-
-### 4.2 Frontend Modifications
-
-**Objective:** To implement the one-page marketplace UI and integrate with the modified backend.
-
-#### 4.2.1 Core Structure and Routing
-
-*   The existing `AuthWrapper` in `main.dart` will be updated to display the new one-page screen (`OnePageMarketplaceScreen`) when a user is not authenticated or if their role is `USER`.
-*   The `ProductListScreen` will be effectively replaced by `OnePageMarketplaceScreen`.
-
-#### 4.2.2 New UI Screens and Widgets
-
-*   **`lib/screens/one_page_marketplace_screen.dart`**: This will be the main screen widget, orchestrating the `HeroSection` and `ProductListSection` widgets.
-*   **User Profile Display (for authenticated USERs)**: When a `USER` is authenticated, their username (specifically `authProvider.user!.farm_name` as per the existing `AuthProvider`) will be displayed in the header of the `OnePageMarketplaceScreen`, serving as a simple profile indicator.
-*   **`lib/sections/hero_section.dart`**:
-    *   A `StatelessWidget` (or `StatefulWidget` if dynamic elements are needed beyond the initial build).
-    *   Will display the farm name "KK Farm".
-    *   Will include anchor links (using `ScrollablePositionedList` or similar for smooth scrolling to sections).
-    *   A banner with an image and a "View Today's Products" button (which will scroll to the product sections).
-*   **`lib/sections/product_list_section.dart`**:
-    *   A `StatefulWidget` responsible for fetching and displaying products for a given category.
-    *   Will take a `category` parameter (e.g., 'Vegetable', 'Fruit').
-    *   Will use `FutureBuilder` or similar to handle asynchronous data fetching from `ApiService`.
-    *   Will display products in a `GridView.builder` using the existing `ProductCard` widget.
-    *   Will include a header for the category (e.g., "ผักสด" or "ผลไม้").
-*   **`lib/widgets/product_card.dart`**:
-    *   Will be modified (if necessary) to display the category, price per kg, and stock alert. (Based on existing description, it already shows image, name, stock, but category and price_per_kg might need explicit handling).
-    *   Interaction: On tap, it will trigger the `click.mp3` sound and open a "Quick Buy Modal" (a `showDialog` or `showModalBottomSheet` for quick purchase).
-
-#### 4.2.3 State Management and Services
-
-*   **`lib/services/api_service.dart`**:
-    *   The `fetchProducts` method will be updated to accept an optional `category` parameter.
-    *   Example signature: `Future<List<Product>> fetchProducts({String? category})`.
-*   **`lib/services/audio_service.dart`**:
-    *   Ensure the `playClickSound()` method is available and integrated with the product card tap.
-*   **`lib/models/product.dart`**:
-    *   Ensure the `Product` model includes the new `category` field.
-
-**Mermaid Diagram: Frontend UI Flow**
-
-```mermaid
-graph TD
-    A[main.dart: AuthWrapper] --> B{Authenticated?}
-    B -- No --> C[OnePageMarketplaceScreen]
-    B -- Yes (Role: USER) --> C
-    B -- Yes (Role: VILLAGER) --> D[VillagerDashboardScreen]
-
-    C --> E[HeroSection]
-    C --> F[ProductListSection (Vegetables)]
-    C --> G[ProductListSection (Fruits)]
-
-    F --> H[ProductCard (Vegetable 1)]
-    F --> I[ProductCard (Vegetable 2)]
-    G --> J[ProductCard (Fruit 1)]
-    G --> K[ProductCard (Fruit 2)]
-
-    H -- Tap --> L[Play click.mp3]
-    H -- Tap --> M[Show Quick Buy Modal]
-
-    E -- "View Today's Products" button --> F
-```
-
-#### 4.2.4 Styling
-
-*   **Color Palette**: Use `ThemeData` to establish natural color tones (white, light green, wood brown). The `ColorScheme.fromSeed` will be used with `Colors.lightGreen` as the seed, and careful selection of other colors to match the "natural" theme.
-*   **Elevation**: Apply subtle elevation to `ProductCard` and other relevant UI elements to achieve the modern one-page aesthetic.
-*   **Typography**: Ensure consistent and legible typography throughout the application.
-
-## 5. Summary of the Design
-
-This design proposes a comprehensive update to the Lung Chaing Farm application, transforming the visitor and buyer experience into a modern, interactive one-page marketplace. Key elements include:
-
-*   Backend database and API modifications to support product categorization.
-*   A new `OnePageMarketplaceScreen` in Flutter, integrating a `HeroSection` and dynamic `ProductListSection` for vegetables and fruits.
-*   Enhanced `ProductCard` interactions with audio feedback and a quick buy modal.
-*   Adherence to specific styling guidelines for a natural and minimalist aesthetic.
-*   Integration by replacing the existing `ProductListScreen` for unauthenticated users and potentially for general users/buyers.
-
-This approach ensures a cohesive and improved user experience, leveraging existing components where possible while introducing necessary new functionality and UI elements.
-
-## 6. References
-
-*   [Flutter `GridView.builder` documentation](https://api.flutter.dev/flutter/widgets/GridView/GridView.builder.html)
-*   [Flutter `FutureBuilder` documentation](https://api.flutter.dev/flutter/widgets/FutureBuilder-class.html)
-*   [Flutter `showDialog` (for modals)](https://api.flutter.dev/flutter/material/showDialog.html)
-*   [SQLite `ALTER TABLE ADD COLUMN`](https://www.sqlite.org/lang_altertable.html)
+*   `jwt_decoder` package: [https://pub.dev/packages/jwt_decoder](https://pub.dev/packages/jwt_decoder)
