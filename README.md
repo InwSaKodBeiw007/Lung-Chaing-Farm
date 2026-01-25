@@ -14,7 +14,7 @@ This is the frontend Flutter application for the Lung Chaing Farm marketplace. I
     *   **Visitors:** Can browse all available products.
     *   **Users (Buyers):** Can register, log in, view products, and utilize the new Quick Buy Modal for purchases.
     *   **Villagers (Sellers):** Can register, log in, manage their own products (add, edit, delete), and receive low stock alerts.
-*   **Secure Authentication:** User registration and login powered by JWT (JSON Web Tokens) with hashed passwords.
+*   **Secure Authentication:** User registration and login powered by JWT (JSON Web Tokens) with hashed passwords. Client-side JWT decoding is now implemented to extract user `id` and `role` from the token, enabling robust role-based access control and user-specific features. `jwt_decoder` and `shared_preferences` are used for token handling and secure storage.
 *   **Advanced Product Management:**
     *   Villagers can add and edit products with multiple images, categories ("Sweet", "Sour"), and custom low stock thresholds.
     *   Product cards display `farm_name` and images in a swipeable gallery.

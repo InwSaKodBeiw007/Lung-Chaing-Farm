@@ -18,7 +18,7 @@ The "Lung Chaing Farm" is a Flutter-based marketplace application designed to co
     *   **Visitors:** Can browse available products. Sales summary is not available for visitors; they are prompted to log in or register when attempting to buy.
     *   **Users (Buyers):** Can register, log in, view products, utilize the Quick Buy Modal, and see a total sales summary for each product.
     *   **Villagers (Sellers):** Can register, log in, manage their own products (add, edit, delete), receive low stock alerts, and view detailed transaction history for their products.
-*   **Secure Authentication:** User registration and login powered by JWT (JSON Web Tokens) with hashed passwords, ensuring secure access. The login API now returns a token and a minimal user object (`{ farm_name: user.farm_name }`). This design choice requires the client-side application to decode the JWT to retrieve the user's `id` and `role` for its logic and UI, which adds a layer of client-side complexity but reduces redundancy in the initial API response.
+*   **Secure Authentication:** User registration and login powered by JWT (JSON Web Tokens) with hashed passwords, ensuring secure access. The login API now returns a token and a minimal user object (`{ farm_name: user.farm_name }`). The client-side application now explicitly decodes the JWT using the `jwt_decoder` package to retrieve the user's `id` and `role` for its logic and UI, which adds a layer of client-side complexity but reduces redundancy in the initial API response.
 *   **Advanced Product Management:**
     *   Villagers can add and edit products with multiple images, categories ("Sweet", "Sour"), and custom low stock thresholds.
     *   Product cards display `farm_name` and images in a swipeable gallery.
@@ -113,8 +113,8 @@ Key API endpoints include:
 The Flutter frontend (`lib` directory) is organized as follows:
 
 *   `main.dart`: Application entry point, `AuthWrapper` for role-based routing.
-*   `lib/models`: Dart classes representing data structures (e.g., `Product`, `User`).
-*   `lib/providers`: `ChangeNotifierProvider` implementations for state management (e.g., `AuthProvider`, `LowStockProvider`).
+*   `lib/models`: Dart classes representing data structures (e.g., `Product`, `User` - now includes `id`, `role`, and `token` fields, with `id` and `role` being nullable to accommodate JWT decoding).
+*   `lib/providers`: `ChangeNotifierProvider` implementations for state management (e.g., `AuthProvider` - now manages the JWT-decoded `User` object for application-wide access and state, `LowStockProvider`).
 *   `lib/screens`: UI screens, categorized by:
     *   `auth`: `LoginScreen`, `RegisterScreen`.
     *   `shared`: `ProductDetailScreen`.
@@ -126,7 +126,7 @@ The Flutter frontend (`lib` directory) is organized as follows:
     *   `hero_section.dart`: Displays a prominent hero banner.
     *   `product_list_section.dart`: Displays categorized lists of products.
 *   `lib/services`: Service classes for various functionalities:
-    *   `api_service.dart`: Handles all communication with the backend API.
+    *   `api_service.dart`: Handles all communication with the backend API, including client-side JWT decoding, user object construction from decoded tokens, and token storage using `shared_preferences`.
     *   `audio_service.dart`: Manages audio playback for UI feedback.
     *   `notification_service.dart`: Provides in-app `SnackBar` notifications.
 *   `lib/widgets`: Reusable UI components:
@@ -197,7 +197,7 @@ The project enhancements were conducted in several phases:
 *   Refined sound logic: Standardized sound playback to *only* occur on refresh button clicks, removing unintended triggers.
 *   UI adjustments: Removed/restored "Add Product" button as requested.
 *   Code cleanup: Removed `debugPrint` statements and unused imports.
-*   Documentation updates: `README.md` and `GEMINI.md` created/updated.
+*   Documentation updates: `README.md` and `GEMINI.md` created/updated to reflect client-side JWT decoding and new user management.
 *   Implemented reusable `RefreshButton` widget.
 *   Implemented role-based display of sales summary on `ProductDetailScreen`.
 
