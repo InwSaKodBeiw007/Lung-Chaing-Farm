@@ -135,7 +135,8 @@ const db = new sqlite3.Database(dbPath, (err) => {
           // Add new columns to products table if they don't exist
           const columns = [
             { name: 'owner_id', type: 'INTEGER' },
-            { name: 'category', type: 'TEXT' },
+            { name: 'category', type: 'TEXT NOT NULL DEFAULT "Uncategorized"' }, DEFAULT // Changed to TEXT NOT NULL
+
             { name: 'low_stock_threshold', type: 'REAL DEFAULT 7' },
             { name: 'low_stock_since_date', type: 'INTEGER' }
           ];
