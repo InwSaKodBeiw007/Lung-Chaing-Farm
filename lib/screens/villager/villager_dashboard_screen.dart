@@ -101,7 +101,10 @@ class _VillagerDashboardScreenState extends State<VillagerDashboardScreen> {
     ); // Use NotificationService
   }
 
-  void _sellProduct(int productId, double currentStock) async {
+  void _sellProduct(Product product) async {
+    final int productId = product.id;
+    final double currentStock = product.stock;
+
     if (currentStock > 0) {
       try {
         // Fetch full product details to get existing image URLs and category
@@ -117,7 +120,7 @@ class _VillagerDashboardScreenState extends State<VillagerDashboardScreen> {
 
         final response = await ApiService.instance.updateProductStock(
           productId,
-          currentStock - 1,
+          currentStock - 1, // Still selling 1kg
           category: category,
           existingImageUrls: existingImageUrls,
         );

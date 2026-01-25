@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:lung_chaing_farm/models/product.dart';
 import 'package:lung_chaing_farm/services/api_service.dart';
 import 'package:lung_chaing_farm/widgets/product_card.dart';
+import 'package:lung_chaing_farm/widgets/quick_buy_modal.dart'; // Import QuickBuyModal
 
 class ProductListSection extends StatefulWidget {
   final String category;
@@ -76,7 +77,8 @@ class _ProductListSectionState extends State<ProductListSection> {
                     final product = snapshot.data![index];
                     return ProductCard(
                       product: product,
-                      onSell: (productToSell) { // Changed signature
+                      onSell: (productToSell) {
+                        // Changed signature
                         showDialog(
                           context: context,
                           builder: (BuildContext context) {

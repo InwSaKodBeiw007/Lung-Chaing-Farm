@@ -41,7 +41,8 @@ class _QuickBuyModalState extends State<QuickBuyModal> {
       if (value == null || value <= 0) {
         _errorMessage = 'Quantity must be positive';
       } else if (value > widget.product.stock) {
-        _errorMessage = 'Only ${widget.product.stock.toStringAsFixed(1)} kg available';
+        _errorMessage =
+            'Only ${widget.product.stock.toStringAsFixed(1)} kg available';
       } else {
         _errorMessage = null;
         _selectedQuantity = value;
@@ -57,7 +58,8 @@ class _QuickBuyModalState extends State<QuickBuyModal> {
         _quantityController.text = _selectedQuantity.toStringAsFixed(1);
         _errorMessage = null;
       } else {
-        _errorMessage = 'Only ${widget.product.stock.toStringAsFixed(1)} kg available';
+        _errorMessage =
+            'Only ${widget.product.stock.toStringAsFixed(1)} kg available';
       }
     });
   }
@@ -83,7 +85,9 @@ class _QuickBuyModalState extends State<QuickBuyModal> {
         child: ListBody(
           children: <Widget>[
             Text('Price: ฿${widget.product.price.toStringAsFixed(2)}/kg'),
-            Text('Available Stock: ${widget.product.stock.toStringAsFixed(1)} kg'),
+            Text(
+              'Available Stock: ${widget.product.stock.toStringAsFixed(1)} kg',
+            ),
             const SizedBox(height: 16),
             Row(
               children: [
@@ -94,9 +98,13 @@ class _QuickBuyModalState extends State<QuickBuyModal> {
                 Expanded(
                   child: TextField(
                     controller: _quantityController,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
                     inputFormatters: [
-                      FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,1}')),
+                      FilteringTextInputFormatter.allow(
+                        RegExp(r'^\d*\.?\d{0,1}'),
+                      ),
                     ],
                     textAlign: TextAlign.center,
                     decoration: InputDecoration(
@@ -126,7 +134,10 @@ class _QuickBuyModalState extends State<QuickBuyModal> {
           onPressed: _errorMessage == null && _selectedQuantity > 0
               ? () {
                   Navigator.of(context).pop();
-                  widget.onConfirmPurchase(widget.product.id, _selectedQuantity);
+                  widget.onConfirmPurchase(
+                    widget.product.id,
+                    _selectedQuantity,
+                  );
                 }
               : null,
           child: const Text('Buy'),

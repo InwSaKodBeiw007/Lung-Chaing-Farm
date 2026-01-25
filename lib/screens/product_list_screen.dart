@@ -8,6 +8,7 @@ import 'package:lung_chaing_farm/screens/auth/register_screen.dart';
 import 'package:lung_chaing_farm/services/notification_service.dart'; // Import NotificationService
 import 'package:lung_chaing_farm/models/product.dart'; // Import Product model
 import 'package:lung_chaing_farm/widgets/refresh_button.dart'; // Import RefreshButton
+import 'package:lung_chaing_farm/widgets/quick_buy_modal.dart'; // Import QuickBuyModal
 
 class ProductListScreen extends StatefulWidget {
   const ProductListScreen({super.key});
@@ -31,31 +32,46 @@ class _ProductListScreenState extends State<ProductListScreen> {
         try {
           return await ApiService.instance.getProducts();
         } catch (e) {
-          NotificationService.showSnackBar(
-            'Failed to load products: ${e.toString()}',
-            isError: true,
-          );
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            NotificationService.showSnackBar(
+              'Failed to load products: ${e.toString()}',
+              isError: true,
+            );
+          });
           return <Map<String, dynamic>>[];
         }
       })();
     });
   }
 
-  void _sellProduct(int productId, double currentStock) async {
-    if (currentStock > 0) {
-      try {
-        await ApiService.instance.updateProductStock(
-          productId,
-          currentStock - 1,
+  void _sellProduct(Product product) async {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return QuickBuyModal(
+          product: product,
+          onConfirmPurchase: (productId, quantity) async {
+            if (quantity > 0) {
+              try {
+                await ApiService.instance.updateProductStock(
+                  productId,
+                  product.stock - quantity, // Subtract the purchased quantity
+                );
+                _fetchProducts(); // Refresh products after selling
+                NotificationService.showSnackBar(
+                  'Purchased $quantity kg of ${product.name}!',
+                );
+              } catch (e) {
+                NotificationService.showSnackBar(
+                  'Failed to purchase product: ${e.toString()}',
+                  isError: true,
+                );
+              }
+            }
+          },
         );
-        _fetchProducts(); // Refresh products after selling
-      } catch (e) {
-        NotificationService.showSnackBar(
-          'Failed to sell product: ${e.toString()}',
-          isError: true,
-        );
-      }
-    }
+      },
+    );
   }
 
   void _deleteProduct(int productId) async {

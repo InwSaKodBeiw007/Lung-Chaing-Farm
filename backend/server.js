@@ -839,3 +839,8 @@ function initApp(injectedDb) {
 }
 
 module.exports = initApp;
+
+// Call initApp to start the server if this file is run directly
+if (require.main === module) {
+  initApp();
+}

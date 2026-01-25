@@ -131,11 +131,13 @@ class ApiService {
   }
 
   // Fetches all products
-  Future<List<Map<String, dynamic>>> getProducts() async {
-    final response = await _httpClient.get(
-      Uri.parse('$baseUrl/products'),
-      headers: _getHeaders(),
-    );
+  Future<List<Map<String, dynamic>>> getProducts({String? category}) async {
+    Uri uri = Uri.parse('$baseUrl/products');
+    if (category != null) {
+      uri = uri.replace(queryParameters: {'category': category});
+    }
+
+    final response = await _httpClient.get(uri, headers: _getHeaders());
     if (response.statusCode == 200) {
       final Map<String, dynamic> data = json.decode(response.body);
       return List<Map<String, dynamic>>.from(data['products']);
