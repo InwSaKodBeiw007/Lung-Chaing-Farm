@@ -17,13 +17,13 @@ class LowStockProvider with ChangeNotifier {
 
   LowStockProvider(this._apiService);
 
-  Future<void> fetchLowStockProducts(String token) async {
+  Future<void> fetchLowStockProducts() async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      final data = await _apiService.getLowStockProducts(token);
+      final data = await _apiService.getLowStockProducts();
       _lowStockProducts = (data as List)
           .map((json) => Product.fromJson(json))
           .toList();

@@ -2,7 +2,10 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart'; // Add this import
+import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:lung_chaing_farm/services/api_exception.dart'; // Import ApiException
+import 'package:lung_chaing_farm/models/user.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
   // --- Singleton Pattern ---
@@ -58,7 +61,7 @@ class ApiService {
   }
 
   // --- Auth Methods ---
-  Future<Map<String, dynamic>> login(String email, String password) async {
+  Future<User> login(String email, String password) async {
     final requestBody = json.encode({'email': email, 'password': password});
     final response = await _httpClient.post(
       Uri.parse('$baseUrl/auth/login'),
@@ -66,7 +69,18 @@ class ApiService {
       body: requestBody,
     );
     if (response.statusCode == 200) {
-      return json.decode(response.body);
+      final responseData = json.decode(response.body);
+      final String token = responseData['token'];
+      final Map<String, dynamic> decodedToken = JwtDecoder.decode(token);
+
+      final int? id = decodedToken['id'] as int?;
+      final String? role = decodedToken['role'] as String?;
+      final String? farmName = responseData['user']['farm_name'] as String?;
+
+      setAuthToken(token); // Store the token
+
+      return User(
+          id: id, email: email, farmName: farmName, role: role, token: token);
     } else {
       final errorBody = json.decode(response.body);
       throw ApiException(
@@ -76,7 +90,7 @@ class ApiService {
     }
   }
 
-  Future<void> register({
+  Future<User> register({
     required String email,
     required String password,
     required String role,
@@ -101,7 +115,23 @@ class ApiService {
       body: json.encode(body),
     );
 
-    if (response.statusCode != 201) {
+    if (response.statusCode == 201) {
+      final responseData = json.decode(response.body);
+      final String token = responseData['token'];
+      final Map<String, dynamic> decodedToken = JwtDecoder.decode(token);
+
+      final int? id = decodedToken['id'] as int?;
+      final String? decodedRole = decodedToken['role'] as String?;
+
+      setAuthToken(token); // Store the token
+
+      return User(
+          id: id,
+          email: email,
+          farmName: farmName,
+          role: decodedRole,
+          token: token);
+    } else {
       final errorBody = json.decode(response.body);
       throw ApiException(
         response.statusCode,
@@ -113,7 +143,7 @@ class ApiService {
   // --- Product Methods ---
 
   // Fetches low stock products for a villager
-  Future<List<Map<String, dynamic>>> getLowStockProducts(String token) async {
+  Future<List<Map<String, dynamic>>> getLowStockProducts() async {
     final response = await _httpClient.get(
       Uri.parse('$baseUrl/villager/low-stock-products'),
       headers: _getHeaders(),
@@ -372,5 +402,38 @@ class ApiService {
         errorBody['error'] ?? 'Failed to delete product',
       );
     }
+  }
+
+  // Helper to load user from stored token on app start or refresh
+  Future<User?> loadUserFromToken(String token) async {
+    try {
+      if (JwtDecoder.isExpired(token)) {
+        return null;
+      }
+      final Map<String, dynamic> decodedToken = JwtDecoder.decode(token);
+      final int? id = decodedToken['id'] as int?;
+      final String? email = decodedToken['email'] as String?;
+      final String? role = decodedToken['role'] as String?;
+      final String? farmName = decodedToken['farm_name'] as String?; // Assuming farm_name is in token payload
+
+      if (id != null && email != null && role != null) {
+        return User(id: id, email: email, role: role, farmName: farmName, token: token);
+      }
+    } on FormatException {
+      debugPrint('Malformed JWT: $token');
+    }
+    return null;
+  }
+
+  // Helper to save token
+  Future<void> _saveToken(String token) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('jwt_token', token);
+  }
+
+  // Helper to get token
+  Future<String?> _getToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('jwt_token');
   }
 }
