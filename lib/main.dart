@@ -55,14 +55,14 @@ class AuthWrapper extends StatelessWidget {
         }
 
         if (authProvider.isAuthenticated) {
-                    if (authProvider.user != null && authProvider.user!.role == 'VILLAGER') {
-                      return const VillagerDashboardScreen();
-                    } else if (authProvider.user != null && authProvider.user!.role == 'USER') {
-                      return ProductListScreen(); // Correct routing for USER
-                    }
-                  }
-                  // If not authenticated or role not handled, show the public product list
-        return const OnePageMarketplaceScreen(); // Changed to OnePageMarketplaceScreen
+          if (authProvider.user != null && authProvider.user!.role == 'VILLAGER') {
+            return const VillagerDashboardScreen();
+          }
+          // Default for authenticated users who are not VILLAGERs (e.g., USER role)
+          return const OnePageMarketplaceScreen(); // Changed to OnePageMarketplaceScreen for other authenticated users
+        }
+        // If not authenticated, show the public marketplace
+        return const OnePageMarketplaceScreen();
       },
     );
   }
