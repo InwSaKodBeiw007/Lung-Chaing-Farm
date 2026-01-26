@@ -19,7 +19,9 @@ class _LowStockProductsScreenState extends State<LowStockProductsScreen> {
   @override
   void initState() {
     super.initState();
-    _fetchLowStockProducts();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _fetchLowStockProducts();
+    });
   }
 
   void _fetchLowStockProducts() {
@@ -33,7 +35,7 @@ class _LowStockProductsScreenState extends State<LowStockProductsScreen> {
     if (authProvider.isAuthenticated &&
         authProvider.user?.role == 'VILLAGER' &&
         userToken != null) {
-      lowStockProvider.fetchLowStockProducts(userToken);
+      lowStockProvider.fetchLowStockProducts();
     } else {
       lowStockProvider.clearLowStockData();
       NotificationService.showSnackBar(

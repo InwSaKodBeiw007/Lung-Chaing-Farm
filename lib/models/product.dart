@@ -53,18 +53,28 @@ class Product {
   factory Product.fromJson(Map<String, dynamic> json) {
     // The images will need to be constructed from the joined table
     // This is a placeholder for now and will be updated when the API service is updated
-    final List<String> images =
-        (json['image_urls'] as List<dynamic>?) // Expect List<dynamic> directly
-            ?.map((dynamic image) => image.toString()) // Convert each to string
-            .map((String image) {
-              // Map to full URL
-              final String fullImageUrl = image.startsWith('uploads/')
-                  ? 'http://10.0.2.2:3000/$image' // For Android emulator
-                  : 'http://localhost:3000/$image'; // For web
-              return fullImageUrl;
-            })
-            .toList() ??
-        [];
+    final List<String> images;
+    final dynamic imageUrlsJson = json['image_urls'];
+
+    if (imageUrlsJson is List) {
+      images = imageUrlsJson.map((dynamic image) => image.toString()).map((
+        String image,
+      ) {
+        final String fullImageUrl = image.startsWith('uploads/')
+            ? 'http://10.0.2.2:3000/$image' // For Android emulator
+            : 'http://localhost:3000/$image'; // For web
+        return fullImageUrl;
+      }).toList();
+    } else if (imageUrlsJson is String && imageUrlsJson.isNotEmpty) {
+      images = imageUrlsJson.split(',').map((String image) {
+        final String fullImageUrl = image.startsWith('uploads/')
+            ? 'http://10.0.2.2:3000/$image' // For Android emulator
+            : 'http://localhost:3000/$image'; // For web
+        return fullImageUrl;
+      }).toList();
+    } else {
+      images = [];
+    }
 
     return Product(
       id: json['id'],

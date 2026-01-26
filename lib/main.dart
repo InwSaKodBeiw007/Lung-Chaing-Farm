@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:lung_chaing_farm/providers/auth_provider.dart';
 import 'package:lung_chaing_farm/providers/low_stock_provider.dart'; // Import LowStockProvider
-import 'package:lung_chaing_farm/screens/product_list_screen.dart';
 import 'package:lung_chaing_farm/screens/villager/villager_dashboard_screen.dart';
 
 import 'package:lung_chaing_farm/services/notification_service.dart'; // Import NotificationService
 import 'package:lung_chaing_farm/services/api_service.dart'; // Import ApiService
+
+import 'package:lung_chaing_farm/screens/one_page_marketplace_screen.dart'; // Import OnePageMarketplaceScreen
+import 'package:lung_chaing_farm/screens/product_list_screen.dart'; // Import ProductListScreen
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -46,15 +48,21 @@ class AuthWrapper extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<AuthProvider>(
       builder: (context, authProvider, child) {
-        if (authProvider.isAuthenticated) {
-          if (authProvider.user!.role == 'VILLAGER') {
-            return const VillagerDashboardScreen();
-            // } else if (authProvider.user!.role == 'USER') {
-            // return const UserHomeScreen(); // Placeholder for now
-          }
+        if (authProvider.isLoading) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
         }
-        // If not authenticated or role not handled, show the public product list
-        return const ProductListScreen();
+
+        if (authProvider.isAuthenticated) {
+          if (authProvider.user != null && authProvider.user!.role == 'VILLAGER') {
+            return const VillagerDashboardScreen();
+          }
+          // Default for authenticated users who are not VILLAGERs (e.g., USER role)
+          return const OnePageMarketplaceScreen(); // Changed to OnePageMarketplaceScreen for other authenticated users
+        }
+        // If not authenticated, show the public marketplace
+        return const OnePageMarketplaceScreen();
       },
     );
   }

@@ -1,278 +1,211 @@
-# MODIFICATION_DESIGN.md
+# MODIFICATION DESIGN DOCUMENT: Fixing "null is not number" in Authentication
 
 ## 1. Overview
 
-This document outlines the design for enhancing the "Lung Chaing Farm" application with a low-stock monitoring and sales transaction history feature. The primary goal is to provide Villager users with real-time insights into their low-stock products and historical sales data for each product. This involves modifications to the Flutter frontend, Node.js backend, and the SQLite database schema.
+This document outlines the design to resolve a "null is not number" error occurring during user registration and login in the Lung Chaing Farm Flutter application. The problem is identified as a likely failure to correctly decode the JSON Web Token (JWT) received from the backend API and extract the `id` and `role` fields, which are crucial for client-side logic, as indicated in the `GEMINI.md` project overview. The proposed solution involves integrating a `jwt_decoder` package to parse the JWT and update the `User` model and `AuthProvider` with the extracted `id` and `role`.
 
-## 2. Detailed Analysis of the Goal or Problem
+## 2. Detailed Analysis of the Goal/Problem
 
-The existing application allows Villagers to manage products and view a "Low Stock Overview" on their dashboard. However, it lacks a prominent, easily accessible indicator for low-stock products and a detailed historical view of sales for individual products.
+The `GEMINI.md` document explicitly states under "Secure Authentication": "The login API now returns a token and a minimal user object (`{ farm_name: user.farm_name }`). This design choice requires the client-side application to decode the JWT to retrieve the user's `id` and `role` for its logic and UI, which adds a layer of client-side complexity but reduces redundancy in the initial API response."
 
-The current request introduces the following features:
-
-*   **Low Stock Indicator in AppBar:** A "shopping cart-like" icon in the AppBar, visible only to Villager users, displaying a badge with the count of *currently* low-stock products. Clicking this icon should navigate to a dedicated low-stock products view.
-*   **Low Stock Products View:** This view (likely an enhanced section of the existing Villager Dashboard or a new screen) will list all products that are currently below their defined low-stock threshold. For each product, it will display the current stock and the date the product *entered* its low-stock state.
-*   **Expandable Transaction History:** Within the low-stock products view, each product entry will have an expandable section that, when clicked, reveals its sales transaction history. This history will show the date and quantity sold ("day with how many kg user pull for") for each transaction.
-*   **Product Card Transaction History:** When any product card (from any product listing, not just low-stock) is clicked, it should navigate to a product details view that also presents the sales transaction history for that product.
-*   **Backend Transaction Storage:** The backend must record every sale transaction, including the product sold, quantity, and date.
-*   **Automated Transaction Deletion:** Removed, as per user's decision to retain all transaction data. Archival to CSV will be handled externally.
-*   **`low_stock_since_date` Tracking:** The backend must track and update a `low_stock_since_date` field for each product, recording when its stock first falls below its threshold. This date should be cleared when the stock recovers above the threshold.
+However, a review of the `MODIFICATION_IMPLEMENTATION.md` for the `feature/one-page-marketplace` branch does not show any explicit steps for implementing this client-side JWT decoding and extraction of `id` and `role`. The "null is not number" error strongly suggests that a part of the application is attempting to use `id` or `role` (expected to be numeric) from a `User` object where these fields are still `null`, because they were never properly extracted from the JWT. This is critical as the `id` and `role` are fundamental for role-based access control and user-specific functionality throughout the application.
 
 ## 3. Alternatives Considered
 
-### 3.1. Storing `low_stock_since_date`
-
-*   **Option A: Add `low_stock_since_date` to `products` table (Chosen)**
-    *   **Pros:** Simple to implement, directly links the low-stock status to the product.
-    *   **Cons:** Requires updating the product record frequently. If the stock fluctuates above and below the threshold, the `low_stock_since_date` might change multiple times, potentially losing the *initial* date it first went low since the feature was implemented.
-    *   **Rationale for Choice:** Given the current requirements, tracking the *most recent* date a product entered low-stock state is sufficient. This option is efficient and avoids creating additional tables for simple timestamping.
-
-*   **Option B: Separate `low_stock_events` table:**
-    *   **Pros:** Provides a full historical log of every time a product entered/exited low stock.
-    *   **Cons:** Over-complicates the requirement since the user only asked for the "date the product entered a low-stock state" (singular) and not a full history. Increases database complexity and query overhead.
-
-### 3.2. Automated Transaction Deletion
-
-*   **Option B: No automated deletion (Chosen - as per user's request)**
-    *   **Pros:** Retains full historical data in the database. Simplifies backend implementation by removing cron job.
-    *   **Cons:** Database size will continuously grow, potentially impacting long-term performance without a robust archival strategy. Requires external management (e.g., CSV export) for data offloading.
-    *   **Rationale for Choice:** User explicitly requested to keep all transaction data in SQLite and manage archival externally.
-
-### 3.3. Transaction History Storage
-
-*   **Option A: New `transactions` table (Chosen)**
-    *   **Pros:** Clear separation of concerns, optimized for transaction data.
-    *   **Cons:** Requires a new table and associated schema changes.
-    *   **Rationale for Choice:** This is the most appropriate and scalable solution for storing historical sales data.
+*   **Modify Backend to Return Full User Object:** One alternative would be to modify the backend API to return the full user object, including `id` and `role`, directly in the login/registration response. This would simplify the frontend logic. However, this contradicts the stated "design choice" in `GEMINI.md` to keep the API response minimal and perform JWT decoding on the client for reduced redundancy. Adhering to the existing design principles is preferred unless a significant blocker is encountered. Therefore, this alternative is rejected.
 
 ## 4. Detailed Design for the Modification
 
-### 4.1. Database Schema Changes
+The design focuses on implementing the missing client-side JWT decoding and integrating the extracted `id` and `role` into the application's state management.
 
-A new table, `transactions`, will be created to store sales records. The `products` table will be modified to include `low_stock_since_date`.
+### 4.1. Add `jwt_decoder` Package
 
-#### `products` table modification:
+The `jwt_decoder` package (`https://pub.dev/packages/jwt_decoder`) will be added to the `pubspec.yaml` as a dependency. This package provides a simple and reliable way to decode JWTs in Dart.
 
-```sql
--- Add a new column to track when a product entered a low-stock state
-ALTER TABLE products ADD COLUMN low_stock_since_date INTEGER; -- Stored as Unix timestamp
+### 4.2. Update `User` Model (`lib/models/user.dart`)
+
+The `User` model will be updated to include `id` (as an `int`) and `role` (as a `String`). These fields will be made nullable initially (`int? id`, `String? role`) to gracefully handle cases where they might not be present (e.g., during initial unauthenticated states or if the token lacks these claims). The `fromJson` factory will be updated to parse these fields from the JWT payload.
+
+```dart
+// lib/models/user.dart
+class User {
+  final int? id; // New field
+  final String email;
+  final String farmName;
+  final String? role; // New field
+
+  User({this.id, required this.email, required this.farmName, this.role});
+
+  factory User.fromJson(Map<String, dynamic> json) {
+    return User(
+      id: json['id'] as int?,
+      email: json['email'] as String,
+      farmName: json['farm_name'] as String,
+      role: json['role'] as String?,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'email': email,
+      'farm_name': farmName,
+      'role': role,
+    };
+  }
+}
 ```
 
-#### New `transactions` table:
+### 4.3. Implement JWT Decoding and User Object Creation in `ApiService` and `AuthProvider`
 
-```sql
-CREATE TABLE transactions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    product_id INTEGER NOT NULL,
-    quantity_sold INTEGER NOT NULL,
-    date_of_sale INTEGER NOT NULL, -- Unix timestamp
-    user_id INTEGER NOT NULL, -- The user who bought the product
-    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-);
+The core logic for decoding the JWT and updating the `User` object will reside primarily in `ApiService` and `AuthProvider`.
+
+#### `ApiService` (`lib/services/api_service.dart`)
+
+The `login` and `register` methods in `ApiService` will be modified. After successfully receiving a `token` from the backend, these methods will:
+1.  Decode the JWT using `JwtDecoder.decode()`.
+2.  Extract the `id` and `role` from the decoded JWT payload.
+3.  Return a `User` object that now includes the extracted `id`, `role`, along with the `email` (from login/register input) and `farmName` (from the minimal user object in the API response).
+
+```dart
+// lib/services/api_service.dart (conceptual changes)
+import 'package:jwt_decoder/jwt_decoder.dart';
+// ... other imports
+
+class ApiService {
+  // ... existing code
+
+  Future<User> login(String email, String password) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/auth/login'),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({'email': email, 'password': password}),
+    );
+
+    if (response.statusCode == 200) {
+      final responseData = json.decode(response.body);
+      final String token = responseData['token'];
+      final Map<String, dynamic> decodedToken = JwtDecoder.decode(token);
+
+      // Extract id and role from decoded token
+      final int? id = decodedToken['id'] as int?;
+      final String? role = decodedToken['role'] as String?;
+      final String farmName = responseData['user']['farm_name']; // From minimal user object
+
+      // Store token (e.g., using shared_preferences)
+      await _saveToken(token);
+
+      return User(id: id, email: email, farmName: farmName, role: role);
+    } else {
+      throw ApiException(json.decode(response.body)['message']);
+    }
+  }
+
+  Future<User> register(String email, String password, String farmName, String role) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/auth/register'),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({
+        'email': email,
+        'password': password,
+        'farm_name': farmName,
+        'role': role,
+      }),
+    );
+
+    if (response.statusCode == 201) {
+      final responseData = json.decode(response.body);
+      final String token = responseData['token'];
+      final Map<String, dynamic> decodedToken = JwtDecoder.decode(token);
+
+      // Extract id and role from decoded token
+      final int? id = decodedToken['id'] as int?;
+      final String? role = decodedToken['role'] as String?;
+
+      // Store token (e.g., using shared_preferences)
+      await _saveToken(token);
+
+      return User(id: id, email: email, farmName: farmName, role: role);
+    } else {
+      throw ApiException(json.decode(response.body)['message']);
+    }
+  }
+
+  // Helper to load user from stored token on app start or refresh
+  Future<User?> _loadUserFromToken() async {
+    final token = await _getToken();
+    if (token != null && !JwtDecoder.isExpired(token)) {
+      final Map<String, dynamic> decodedToken = JwtDecoder.decode(token);
+      final int? id = decodedToken['id'] as int?;
+      final String? email = decodedToken['email'] as String?; // Assuming email is also in token
+      final String? role = decodedToken['role'] as String?;
+
+      // We might need to fetch farm_name separately if it's not in the token
+      // For now, let's assume farm_name is not strictly needed for _loadUserFromToken initial setup
+      if (email != null && id != null && role != null) {
+        return User(id: id, email: email, farmName: 'Unknown Farm', role: role); // Placeholder farmName
+      }
+    }
+    return null;
+  }
+}
 ```
 
-### 4.2. Backend (Node.js with Express) Design
+#### `AuthProvider` (`lib/providers/auth_provider.dart`)
 
-#### 4.2.1. New API Endpoints
+`AuthProvider` will be responsible for managing the authenticated `User` object across the application.
+1.  The `_user` field will be of type `User?`.
+2.  The `login` and `register` methods will call the respective `ApiService` methods, receive the fully populated `User` object, and set it to `_user`.
+3.  A method `checkAuthStatus` will be added or modified to attempt to load a user from a stored token on app startup, using `ApiService._loadUserFromToken()`.
 
-*   **`POST /api/products/:productId/purchase`**:
-    *   **Purpose:** Handles a product purchase, decrements stock, records transaction, updates `low_stock_since_date`.
-    *   **Input:** `productId` (path param), `quantity` (body).
-    *   **Logic:**
-        1.  Authenticate user (Buyer role required).
-        2.  Fetch product by `productId`.
-        3.  Check if `quantity` is available.
-        4.  Decrement `stock` in `products` table.
-        5.  Create a new entry in `transactions` table with `product_id`, `quantity_sold`, `date_of_sale` (current timestamp), `user_id`.
-        6.  Check if new `stock` is below `low_stock_threshold`:
-            *   If yes, and `low_stock_since_date` is NULL, set `low_stock_since_date` to current timestamp in `products` table.
-            *   If no, and `low_stock_since_date` is NOT NULL, set `low_stock_since_date` to NULL.
-        7.  Return updated product information.
-        8.  **Trigger Notifications:** If product enters low-stock state, send notification (e.g., socket.io, for future implementation as "toast ...something").
-*   **`GET /api/villager/low-stock-products`**:
-    *   **Purpose:** Retrieve all products for the authenticated Villager that are currently below their low-stock threshold.
-    *   **Logic:**
-        1.  Authenticate user (Villager role required).
-        2.  Fetch products where `owner_id` matches Villager's ID AND `stock` < `low_stock_threshold`.
-        3.  Return product details including `low_stock_since_date`.
-*   **`GET /api/products/:productId/transactions`**:
-    *   **Purpose:** Retrieve sales transaction history for a specific product, with optional filtering by time period.
-    *   **Input:** `productId` (path param), `days` (query parameter, optional, e.g., `?days=30`).
-    *   **Logic:**
-        1.  Authenticate user (Villager role required, and must be owner of `productId`).
-        2.  Fetch all `transactions` for `productId`.
-        3.  If `days` query parameter is provided, filter transactions to include only those within the last `days` from the current date.
-        4.  Order by `date_of_sale` descending.
-        5.  Return transaction details (date, quantity sold).
+### 4.4. Error Handling
 
-### 4.2.2. Transaction Data Retention
+*   **JWT Decoding Errors:** Wrap `JwtDecoder.decode()` calls in `try-catch` blocks to handle malformed tokens.
+*   **Missing Claims:** Handle cases where `id` or `role` might be missing from the decoded JWT payload by using nullable types (`int?`, `String?`) and providing default behavior or throwing specific exceptions.
+*   **API Exceptions:** Continue to use `ApiException` for backend-related errors.
 
-*   The application will retain all sales transaction data in the SQLite database.
-*   The previous plan for automated deletion of old transactions has been removed.
-*   Archival of old data to CSV will be handled externally by the user.
+### 4.5. Usage of `id` and `role`
 
-### 4.3. Frontend (Flutter) Design
-
-#### 4.3.1. State Management (`AuthProvider` and new `LowStockProvider`)
-
-*   **`AuthProvider`:** Will need to identify if the logged-in user is a Villager.
-*   **New `LowStockProvider` (or extend existing `AuthProvider`):**
-    *   Purpose: Manages the state of low-stock products for the authenticated Villager.
-    *   Contains: `List<Product>` of low-stock products, `lowStockCount`.
-    *   Methods:
-        *   `fetchLowStockProducts()`: Calls `GET /api/villager/low-stock-products`.
-        *   `getLowStockCount()`: Returns the number of low-stock products.
-    *   Will notify listeners when `lowStockCount` changes.
-
-#### 4.3.2. AppBar Low Stock Indicator
-
-*   **Component:** An `IconButton` with a `Badge` widget.
-*   **Placement:** In the `AppBar` of screens accessible to Villagers.
-*   **Icon:** Use the provided `@assets/icons/shop-cart.png`.
-*   **Badge Content:** Dynamically display `LowStockProvider.lowStockCount`.
-*   **Navigation:** On tap, navigate to the `LowStockProductsScreen`.
-
-#### 4.3.3. `LowStockProductsScreen` (New Screen/Section)
-
-*   **Access:** Navigated to from the AppBar indicator.
-*   **Content:**
-    *   Fetches and displays `List<Product>` from `LowStockProvider`.
-    *   For each product: `ProductCard` (or similar widget) showing product details, current stock, and `low_stock_since_date`.
-    *   An `ExpansionTile` or similar widget to reveal `ProductTransactionHistory` component.
-
-#### 4.3.4. `ProductTransactionHistory` Widget (New Reusable Widget)
-
-*   **Purpose:** Displays a list of transactions for a given product.
-*   **Input:** `productId`.
-*   **Logic:**
-    *   Fetches transaction data using `GET /api/products/:productId/transactions`.
-    *   Displays each transaction as "User buy total" and "date".
-
-#### 4.3.5. Product Card & Detail Screen Modifications
-
-*   **Product Card (`product_card.dart`):** Modify to make the entire card tappable. On tap, navigate to a `ProductDetailScreen` (if not already existing, otherwise enhance existing one).
-*   **`ProductDetailScreen`:** This screen will display comprehensive product information and include the `ProductTransactionHistory` widget for the specific product.
-
-### 4.4. UI/UX Considerations
-
-*   **Notifications:** Implement transient `SnackBar` messages for successful purchases or when a product enters a low-stock state (for Villagers).
-*   **Loading States:** Ensure appropriate loading indicators are displayed while fetching data (e.g., `CircularProgressIndicator`).
-*   **Empty States:** Display a clear message when there are no low-stock products or no transaction history.
+All existing and future code that depends on `user.id` or `user.role` (e.g., for routing, UI rendering, authorization checks) will now access these properties from the `User` object available through `AuthProvider`. This ensures consistent and correctly populated data.
 
 ## 5. Diagrams
 
-### 5.1. Database Schema (Mermaid Entity-Relationship Diagram)
-
-```mermaid
-erDiagram
-    users ||--o{ products : "owns"
-    products ||--o{ product_images : "has"
-    products ||--o{ transactions : "has"
-
-    users {
-        INTEGER id PK
-        TEXT email
-        TEXT password_hash
-        TEXT role
-        TEXT farm_name
-    }
-
-    products {
-        INTEGER id PK
-        TEXT name
-        REAL price
-        INTEGER stock
-        TEXT category
-        INTEGER low_stock_threshold
-        INTEGER owner_id FK "users.id"
-        INTEGER low_stock_since_date NULL "Unix timestamp"
-    }
-
-    product_images {
-        INTEGER id PK
-        INTEGER product_id FK "products.id"
-        TEXT image_path
-    }
-
-    transactions {
-        INTEGER id PK
-        INTEGER product_id FK "products.id"
-        INTEGER quantity_sold
-        INTEGER date_of_sale "Unix timestamp"
-        INTEGER user_id FK "users.id"
-    }
-```
-
-### 5.2. Frontend Flow (Mermaid Flowchart)
-
-```mermaid
-graph TD
-    A[Villager Login] --> B{Is User Villager?}
-    B -- Yes --> C[Villager Home/Dashboard]
-    B -- No --> D[Other User Roles]
-
-    C --> E[AppBar]
-    E --> F{Low Stock Icon Clicked?}
-    F -- Yes --> G[LowStockProductsScreen]
-    F -- No --> C
-
-    G --> H[Fetch Low Stock Products]
-    H --> I{For Each Low Stock Product}
-    I --> J[Display Product Card]
-    J --> K{Expand Transaction History?}
-    K -- Yes --> L[Display ProductTransactionHistory Widget]
-    K -- No --> J
-
-    C --> M[Product Card List]
-    M --> N{Product Card Clicked?}
-    N -- Yes --> O[ProductDetailScreen]
-    N -- No --> M
-
-    O --> P[Display Product Details]
-    O --> Q[Display ProductTransactionHistory Widget]
-```
-
-### 5.3. Backend Data Flow for Purchase (Mermaid Sequence Diagram)
+### Sequence Diagram: Enhanced Authentication Flow
 
 ```mermaid
 sequenceDiagram
-    participant FE as Frontend
-    participant BE as Backend
-    participant DB as Database
+    participant User
+    participant AppClient
+    participant ApiService
+    participant AuthProvider
+    participant BackendAPI
+    participant JWTDecoder
 
-    FE->>BE: POST /api/products/:productId/purchase {quantity}
-    BE->>BE: Authenticate User (Buyer)
-    BE->>DB: SELECT * FROM products WHERE id = :productId
-    DB-->>BE: Product Data
-    BE->>BE: Check available stock
-    alt Sufficient Stock
-        BE->>DB: UPDATE products SET stock = stock - :quantity WHERE id = :productId
-        BE->>DB: INSERT INTO transactions (...) VALUES (...)
-        BE->>DB: SELECT stock, low_stock_threshold, low_stock_since_date FROM products WHERE id = :productId
-        DB-->>BE: Updated Product Data
-        alt Product enters low-stock
-            BE->>DB: UPDATE products SET low_stock_since_date = :now WHERE id = :productId
-            BE->>BE: Trigger Low Stock Notification (for Villager)
-        else Product recovers from low-stock
-            BE->>DB: UPDATE products SET low_stock_since_date = NULL WHERE id = :productId
-        end
-        BE-->>FE: 200 OK + Updated Product
-    else Insufficient Stock
-        BE-->>FE: 400 Bad Request (Insufficient Stock)
-    end
+    User->>AppClient: Initiates Login/Registration
+    AppClient->>AuthProvider: Calls login/register(email, password, ...)
+    AuthProvider->>ApiService: Calls login/register(email, password, ...)
+    ApiService->>BackendAPI: HTTP POST /auth/login or /auth/register
+    BackendAPI-->>ApiService: HTTP 200/201 (token, minimal user object)
+    ApiService->>JWTDecoder: Decode token
+    JWTDecoder-->>ApiService: Decoded Payload (contains id, role)
+    ApiService->>ApiService: Extract id, role, farm_name
+    ApiService->>ApiService: Save token locally
+    ApiService-->>AuthProvider: Returns User(id, email, farm_name, role)
+    AuthProvider->>AuthProvider: Sets current user (_user = User)
+    AuthProvider->>AppClient: Notifies listeners (user logged in)
+    AppClient->>User: Navigates to appropriate screen
 ```
 
 ## 6. Summary
 
-This design integrates low-stock monitoring and sales transaction history into the Lung Chaing Farm application, primarily for Villager users. It involves adding a `transactions` table and `low_stock_since_date` to the `products` table in the SQLite database. The backend will handle new API endpoints for purchases, low-stock product retrieval, and transaction history with filtering. All transaction data will be retained in the database as per user's request. The Flutter frontend will feature an AppBar badge, a dedicated low-stock products screen with expandable transaction history, and enhanced product card interactions. This approach provides a clear and actionable path to fulfilling the requested features.
+This design addresses the "null is not number" error by implementing robust client-side JWT decoding. It involves:
+1.  Adding the `jwt_decoder` package.
+2.  Updating the `User` model to include `id` and `role`.
+3.  Modifying `ApiService` to decode JWTs, extract `id` and `role`, and construct a complete `User` object.
+4.  Updating `AuthProvider` to manage this fully populated `User` object.
+5.  Ensuring proper error handling for JWT operations.
+This approach aligns with the existing design choice for client-side JWT processing and provides a stable foundation for role-based features.
 
-## 7. References to Research URLs
+## 7. References
 
-*   **SQLite `ALTER TABLE ADD COLUMN`:** [https://www.sqlite.org/lang_altertable.html](https://www.sqlite.org/lang_altertable.html)
-*   **`node-cron` package:** [https://www.npmjs.com/package/node-cron](https://www.npmjs.com/package/node-cron)
-*   **Flutter `Badge` widget:** [https://api.flutter.dev/flutter/material/Badge-class.html](https://api.flutter.dev/flutter/material/Badge-class.html)
-*   **Flutter `ExpansionTile` widget:** [https://api.flutter.dev/flutter/material/ExpansionTile-class.html](https://api.flutter.dev/flutter/material/ExpansionTile-class.html)
-*   **Mermaid Entity Relationship Diagrams:** [https://mermaid.js.org/syntax/entityRelationshipDiagram.html](https://mermaid.js.org/syntax/entityRelationshipDiagram.html)
-*   **Mermaid Flowcharts:** [https://mermaid.js.org/syntax/flowchart.html](https://mermaid.js.org/syntax/flowchart.html)
-*   **Mermaid Sequence Diagrams:** [https://mermaid.js.org/syntax/sequenceDiagram.html](https://mermaid.js.org/syntax/sequenceDiagram.html)
+*   `jwt_decoder` package: [https://pub.dev/packages/jwt_decoder](https://pub.dev/packages/jwt_decoder)

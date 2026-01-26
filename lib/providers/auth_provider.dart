@@ -1,5 +1,4 @@
 // lib/providers/auth_provider.dart
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:lung_chaing_farm/models/user.dart';
@@ -9,48 +8,49 @@ import 'package:lung_chaing_farm/services/api_exception.dart'; // Import ApiExce
 class AuthProvider with ChangeNotifier {
   User? _user;
   String? _token;
+  bool _isLoading = true; // Added loading flag
 
   User? get user => _user;
   String? get token => _token;
   bool get isAuthenticated => _token != null;
+  bool get isLoading => _isLoading; // Getter for loading flag
 
   AuthProvider() {
     _loadUserFromStorage();
   }
 
   Future<void> _loadUserFromStorage() async {
-    final prefs = await SharedPreferences.getInstance();
-    final userData = prefs.getString('userData');
-    if (userData != null) {
-      final decoded = json.decode(userData) as Map<String, dynamic>;
-      _user = User.fromJson(decoded['user']);
-      _token = decoded['token'];
-      ApiService.instance.setAuthToken(_token);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('jwt_token');
+
+      if (token != null) {
+        final user = await ApiService.instance.loadUserFromToken(token);
+        if (user != null) {
+          _user = user;
+          _token = user.token;
+          ApiService.instance.setAuthToken(_token);
+          notifyListeners();
+        } else {
+          await prefs.remove('jwt_token');
+        }
+      }
+    } finally {
+      _isLoading = false;
       notifyListeners();
     }
   }
 
-  Future<void> _saveUserToStorage(User user, String token) async {
-    final prefs = await SharedPreferences.getInstance();
-    final userData = json.encode({
-      'token': token,
-      'user': {
-        'id': user.id,
-        'email': user.email,
-        'role': user.role,
-        'farm_name': user.farmName,
-      },
-    });
-    await prefs.setString('userData', userData);
-  }
-
   Future<void> login(String email, String password) async {
     try {
-      final response = await ApiService.instance.login(email, password);
-      _user = User.fromJson(response['user']);
-      _token = response['token'];
+      final user = await ApiService.instance.login(email, password);
+      _user = user;
+      _token = user.token;
       ApiService.instance.setAuthToken(_token);
-      await _saveUserToStorage(_user!, _token!);
+      final prefs = await SharedPreferences.getInstance();
+      if (_token != null) {
+        await prefs.setString('jwt_token', _token!);
+      }
       notifyListeners();
     } on ApiException catch (e) {
       if (e.statusCode == 401 || e.statusCode == 403) {
@@ -60,7 +60,7 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
-  Future<void> register({
+  Future<User> register({
     required String email,
     required String password,
     required String role,
@@ -69,7 +69,7 @@ class AuthProvider with ChangeNotifier {
     String? contactInfo,
   }) async {
     try {
-      await ApiService.instance.register(
+      final user = await ApiService.instance.register(
         email: email,
         password: password,
         role: role,
@@ -77,8 +77,15 @@ class AuthProvider with ChangeNotifier {
         address: address,
         contactInfo: contactInfo,
       );
-      // Automatically log in the user after successful registration
-      await login(email, password);
+      _user = user;
+      _token = user.token;
+      ApiService.instance.setAuthToken(_token);
+      final prefs = await SharedPreferences.getInstance();
+      if (_token != null) {
+        await prefs.setString('jwt_token', _token!);
+      }
+      notifyListeners();
+      return user;
     } on ApiException catch (e) {
       if (e.statusCode == 401 || e.statusCode == 403) {
         throw Exception('Permission denied or invalid credentials.');
@@ -92,7 +99,7 @@ class AuthProvider with ChangeNotifier {
     _token = null;
     ApiService.instance.setAuthToken(null); // Clear token
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('userData');
+    await prefs.remove('jwt_token'); // Remove jwt_token
     notifyListeners();
   }
 }

@@ -19,6 +19,10 @@ void main() {
       // Directly assign the mock to the static instance for testing
       ApiService.instance = mockApiService; // Use the public setter
       lowStockProvider = LowStockProvider(mockApiService);
+
+      // Default stub for getLowStockProducts to prevent MissingStubError
+      // for tests that call fetchLowStockProducts implicitly.
+      when(mockApiService.getLowStockProducts()).thenAnswer((_) async => []);
     });
 
     tearDown(() {
@@ -62,10 +66,10 @@ void main() {
       final mockProductsJson = [product1.toJson(), product2.toJson()];
 
       when(
-        mockApiService.getLowStockProducts(any),
+        mockApiService.getLowStockProducts(),
       ).thenAnswer((_) async => mockProductsJson);
 
-      final future = lowStockProvider.fetchLowStockProducts('dummy_token');
+      final future = lowStockProvider.fetchLowStockProducts();
       expect(lowStockProvider.isLoading, true); // Loading state should be true
 
       await future;
@@ -90,10 +94,10 @@ void main() {
 
     test('fetchLowStockProducts handles error correctly', () async {
       when(
-        mockApiService.getLowStockProducts(any),
+        mockApiService.getLowStockProducts(),
       ).thenThrow(Exception('Failed to fetch'));
 
-      await lowStockProvider.fetchLowStockProducts('dummy_token');
+      await lowStockProvider.fetchLowStockProducts();
 
       expect(lowStockProvider.isLoading, false);
       expect(lowStockProvider.lowStockProducts, isEmpty);
@@ -116,10 +120,10 @@ void main() {
       final mockProductsJson = [product1.toJson()];
 
       when(
-        mockApiService.getLowStockProducts(any),
+        mockApiService.getLowStockProducts(),
       ).thenAnswer((_) async => mockProductsJson);
 
-      await lowStockProvider.fetchLowStockProducts('dummy_token');
+      await lowStockProvider.fetchLowStockProducts();
       expect(lowStockProvider.lowStockCount, 1);
 
       lowStockProvider.clearLowStockData();
